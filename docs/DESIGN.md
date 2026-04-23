@@ -171,18 +171,25 @@ ncu(entry) = modelWeight(entry.model)
            / 1_000_000
 ```
 
-### 7.4 Default caps (heuristic — calibrate after dogfooding)
+### 7.4 Default caps (calibrated 2026-04-23 from claude.ai/settings/usage)
 
 | Plan | 5h cap (NCU) | 7d cap (NCU) |
 |---|---|---|
-| Pro | 50 | 350 |
-| Max 5× | 250 | 1750 |
-| Max 20× | 1000 | 7000 |
+| Pro | 5 | 70 |
+| Max 5× | 25 | 350 |
+| Max 20× | 100 | 1400 |
 
-These are placeholders. We'll refine by:
-1. Cross-referencing community-derived numbers from `ccusage`.
-2. Recording the user's NCU at the moment they hit a cap (Settings UI: "I just hit my cap, calibrate").
-3. Letting users set Custom caps explicitly.
+**Calibration math (Max 5× anchor):** dogfooding screenshot of claude.ai showed `Current session: 80% used` and `Weekly limits — All models: 15% used`, while our parser reported 20.0 NCU in the active 5h block and 51.7 NCU over the 7d window for the same instant. Solving:
+
+- 5h cap = 20.0 NCU / 0.80 = **25 NCU**
+- 7d cap = 51.7 NCU / 0.15 ≈ **345 NCU** (rounded to 350)
+
+Pro and Max 20× are scaled 1×/4× from the Max 5× anchor per Anthropic's standard plan ratios. Pre-calibration heuristics (5h: 50 / 250 / 1000) were ~10× too generous, which made the HUD show ~8% when the user was actually at ~80%.
+
+**Future refinement:**
+1. Re-anchor whenever Anthropic publishes any numeric cap.
+2. Settings UI: "calibrate from claude.ai screenshot" — let users paste their current % and back-solve their cap.
+3. Custom caps as an escape hatch.
 
 ## 8. Rolling window algorithm
 

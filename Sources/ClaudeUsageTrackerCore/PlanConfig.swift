@@ -13,20 +13,23 @@ public enum PlanTier: String, CaseIterable, Sendable {
         }
     }
 
-    /// Heuristic NCU caps per `docs/DESIGN.md` §7.4.
+    /// NCU caps calibrated against claude.ai/settings/usage on 2026-04-23.
+    /// See `docs/DESIGN.md` §7.4 for the calibration math. Max 5× is the
+    /// anchor (we have direct data); Pro and Max 20× are scaled 1×/4× from it
+    /// per Anthropic's standard plan ratios.
     public var cap5h: Double {
         switch self {
-        case .pro:    return 50
-        case .max5x:  return 250
-        case .max20x: return 1000
+        case .pro:    return 5
+        case .max5x:  return 25
+        case .max20x: return 100
         }
     }
 
     public var cap7d: Double {
         switch self {
-        case .pro:    return 350
-        case .max5x:  return 1750
-        case .max20x: return 7000
+        case .pro:    return 70
+        case .max5x:  return 350
+        case .max20x: return 1400
         }
     }
 }
