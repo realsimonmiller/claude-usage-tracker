@@ -69,5 +69,41 @@ func printWindow(label: String, window: TimeInterval) {
     print("")
 }
 
-printWindow(label: "rolling 5h", window: fiveHours)
+if let block = BlockDetector.activeBlock(from: allEntries, now: now) {
+    let blockTotal = block.totals
+    let blockFamilies = UsageAggregator.totalsByFamily(for: block.entries, in: fiveHours, now: now)
+    let remaining = block.remainingTime(now: now)
+    let remH = Int(remaining) / 3600
+    let remM = (Int(remaining) % 3600) / 60
+    let blockStartFmt = ISO8601DateFormatter().string(from: block.startedAt)
+    let blockEndFmt   = ISO8601DateFormatter().string(from: block.endsAt)
+    print("┌─ active 5h block (anchored, ccusage-style)")
+    print("│  started:   \(blockStartFmt)")
+    print("│  ends:      \(blockEndFmt)  (in \(remH)h \(remM)m)")
+    print("│  turns:     \(block.entries.count)")
+    print("│  input:     \(formatTokens(blockTotal.inputTokens))")
+    print("│  cache_w:   \(formatTokens(blockTotal.cacheCreationTokens))")
+    print("│  cache_r:   \(formatTokens(blockTotal.cacheReadTokens))")
+    print("│  output:    \(formatTokens(blockTotal.outputTokens))")
+    print("│  raw total: \(formatTokens(blockTotal.totalRawTokens))")
+    print("│  NCU:       \(String(format: "%.2f", blockTotal.ncu))")
+    if !blockFamilies.isEmpty {
+        print("│  by model family:")
+        for (family, t) in blockFamilies {
+            let pct = blockTotal.ncu > 0 ? (t.ncu / blockTotal.ncu) * 100 : 0
+            let name = padRight("\(family.rawValue):", 8)
+            let ncuStr = padLeft(String(format: "%.2f", t.ncu), 8)
+            let pctStr = padLeft(String(format: "%.1f", pct), 5)
+            print("│    \(name) NCU=\(ncuStr)  (\(pctStr)%)  turns=\(t.entryCount)")
+        }
+    }
+    print("└─")
+    print("")
+} else {
+    print("┌─ active 5h block: none (idle for >5h)")
+    print("└─")
+    print("")
+}
+
+printWindow(label: "rolling 5h (sliding, for comparison)", window: fiveHours)
 printWindow(label: "rolling 7d", window: sevenDays)

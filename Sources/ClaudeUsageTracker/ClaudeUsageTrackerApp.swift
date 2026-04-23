@@ -52,6 +52,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(loading)
         } else {
             menu.addItem(disabledItem("  5h:  \(formatNCU(snapshot.totals5h.ncu)) / \(formatNCU(plan.cap5h))  (\(snapshot.percent5h)%)"))
+            if let block = snapshot.activeBlock {
+                menu.addItem(disabledItem("       resets in \(formatRemaining(block.remainingTime()))"))
+            } else {
+                menu.addItem(disabledItem("       no active block (idle >5h)"))
+            }
             menu.addItem(disabledItem("  7d:  \(formatNCU(snapshot.totals7d.ncu)) / \(formatNCU(plan.cap7d))  (\(snapshot.percent7d)%)"))
             menu.addItem(disabledItem("  state: \(snapshot.bucket.displayName)"))
             menu.addItem(disabledItem("  entries: \(snapshot.entryCount) (after dedup)"))
@@ -134,7 +139,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             drivingPercent: bucket.demoPercent,
             bucket: bucket,
             asOf: Date(),
-            entryCount: snapshot.entryCount
+            entryCount: snapshot.entryCount,
+            activeBlock: nil
         )
         snapshot = fakeSnap
         render(snapshot: fakeSnap)
@@ -160,6 +166,14 @@ private func formatTimeAgo(_ date: Date) -> String {
     if secs < 60   { return "\(secs)s ago" }
     if secs < 3600 { return "\(secs / 60)m ago" }
     return "\(secs / 3600)h ago"
+}
+
+private func formatRemaining(_ secs: TimeInterval) -> String {
+    let s = Int(secs)
+    let h = s / 3600
+    let m = (s % 3600) / 60
+    if h > 0 { return "\(h)h \(m)m" }
+    return "\(m)m"
 }
 
 @main

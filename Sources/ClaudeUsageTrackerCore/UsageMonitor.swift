@@ -10,6 +10,9 @@ public struct UsageSnapshot: Sendable {
     public let bucket: HealthBucket
     public let asOf: Date
     public let entryCount: Int
+    /// The 5h block currently in flight, if any. `nil` when the user has been
+    /// idle for >5h (in which case `totals5h` is `.zero`).
+    public let activeBlock: UsageBlock?
 
     public static let empty = UsageSnapshot(
         plan: .pro,
@@ -20,7 +23,8 @@ public struct UsageSnapshot: Sendable {
         drivingPercent: 0,
         bucket: .noData,
         asOf: Date(),
-        entryCount: 0
+        entryCount: 0,
+        activeBlock: nil
     )
 
     public init(
@@ -32,7 +36,8 @@ public struct UsageSnapshot: Sendable {
         drivingPercent: Int,
         bucket: HealthBucket,
         asOf: Date,
-        entryCount: Int
+        entryCount: Int,
+        activeBlock: UsageBlock?
     ) {
         self.plan = plan
         self.totals5h = totals5h
@@ -43,6 +48,7 @@ public struct UsageSnapshot: Sendable {
         self.bucket = bucket
         self.asOf = asOf
         self.entryCount = entryCount
+        self.activeBlock = activeBlock
     }
 }
 
@@ -101,10 +107,10 @@ public final class UsageMonitor {
     }
 
     public static func snapshot(from entries: [UsageEntry], plan: PlanTier, now: Date = Date()) -> UsageSnapshot {
-        let fiveHours: TimeInterval = 5 * 60 * 60
         let sevenDays: TimeInterval = 7 * 24 * 60 * 60
 
-        let totals5h = UsageAggregator.totals(for: entries, in: fiveHours, now: now)
+        let activeBlock = BlockDetector.activeBlock(from: entries, now: now)
+        let totals5h = activeBlock?.totals ?? .zero
         let totals7d = UsageAggregator.totals(for: entries, in: sevenDays, now: now)
 
         let cap5h = plan.cap5h
@@ -123,7 +129,8 @@ public final class UsageMonitor {
             drivingPercent: driving,
             bucket: bucket,
             asOf: now,
-            entryCount: entries.count
+            entryCount: entries.count,
+            activeBlock: activeBlock
         )
     }
 }
