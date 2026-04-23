@@ -1,4 +1,5 @@
 import AppKit
+import ClaudeUsageTrackerCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!

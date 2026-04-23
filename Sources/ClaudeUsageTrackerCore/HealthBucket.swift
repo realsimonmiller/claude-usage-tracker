@@ -1,6 +1,6 @@
 import Foundation
 
-enum HealthBucket: Int, CaseIterable {
+public enum HealthBucket: Int, CaseIterable, Sendable {
     case healthy
     case scuffed
     case bruised
@@ -10,7 +10,7 @@ enum HealthBucket: Int, CaseIterable {
     case evilGrin
     case noData
 
-    var placeholderFace: String {
+    public var placeholderFace: String {
         switch self {
         case .healthy:  return "😀"
         case .scuffed:  return "🙂"
@@ -25,7 +25,7 @@ enum HealthBucket: Int, CaseIterable {
 
     /// SF Symbol fallback used while we don't have real Doom face sprites.
     /// These render reliably in the menu bar at 22pt regardless of emoji font issues.
-    var sfSymbolName: String {
+    public var sfSymbolName: String {
         switch self {
         case .healthy:  return "face.smiling"
         case .scuffed:  return "face.smiling.inverse"
@@ -38,7 +38,7 @@ enum HealthBucket: Int, CaseIterable {
         }
     }
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .healthy:  return "Healthy"
         case .scuffed:  return "Scuffed"
@@ -51,7 +51,7 @@ enum HealthBucket: Int, CaseIterable {
         }
     }
 
-    var demoPercent: Int {
+    public var demoPercent: Int {
         switch self {
         case .healthy:  return 12
         case .scuffed:  return 35
@@ -64,7 +64,7 @@ enum HealthBucket: Int, CaseIterable {
         }
     }
 
-    static func from(percent: Int) -> HealthBucket {
+    public static func from(percent: Int) -> HealthBucket {
         switch percent {
         case ..<20:  return .healthy
         case ..<50:  return .scuffed

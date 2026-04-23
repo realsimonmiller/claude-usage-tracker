@@ -188,6 +188,10 @@ These are placeholders. We'll refine by:
 
 Anthropic's actual semantics: a 5h timer starts on the *first* message of a fresh window. The 7d window appears to be a fixed weekly reset. We approximate both as **sliding sums** — simpler and never under-reports.
 
+> **M2 finding (2026-04-23):** Cross-checking against `ccusage`, Anthropic's 5h cap is actually an *anchored block*, not a sliding window. A block begins on the first message after a 5h gap and runs for exactly 5 hours; once it expires, the next message starts a new block. The sliding-sum approximation always over-reports relative to the real block, so it stays "safe" (never under-reports), but M3 should switch to true block detection so the popover's "resets in N" countdown matches Anthropic's UI exactly.
+
+> **M2 finding (2026-04-23):** Claude Code re-emits identical assistant turns into multiple JSONL files when sessions are resumed or branched. The aggregator must dedupe on `(message.id, requestId)` — without this we over-count by ~2×. Implemented in `TranscriptScanner.deduplicate`.
+
 ```swift
 func sum(window: TimeInterval, now: Date = .now) -> Double {
     let cutoff = now.addingTimeInterval(-window)

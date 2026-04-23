@@ -7,9 +7,19 @@ let package = Package(
         .macOS(.v13),
     ],
     targets: [
+        .target(
+            name: "ClaudeUsageTrackerCore",
+            path: "Sources/ClaudeUsageTrackerCore"
+        ),
         .executableTarget(
             name: "ClaudeUsageTracker",
+            dependencies: ["ClaudeUsageTrackerCore"],
             path: "Sources/ClaudeUsageTracker"
+        ),
+        .executableTarget(
+            name: "cct-parse",
+            dependencies: ["ClaudeUsageTrackerCore"],
+            path: "Sources/cct-parse"
         ),
     ]
 )
