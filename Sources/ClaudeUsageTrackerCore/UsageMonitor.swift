@@ -52,30 +52,66 @@ public struct UsageSnapshot: Sendable {
     }
 }
 
-/// Polls the transcript directory on a timer, recomputes usage totals against
-/// the configured plan caps, and pushes a `UsageSnapshot` to its callback on
-/// the main thread. M3 uses a brute-force re-scan; M4 will swap in FSEvents +
-/// incremental tailing.
+/// Tails Claude Code's transcripts via FSEvents + a byte-offset incremental
+/// scanner, then re-emits a `UsageSnapshot` whenever (a) new data arrives or
+/// (b) the countdown timer ticks (so "resets in N" stays fresh even when
+/// idle). All file I/O and aggregation runs on `workQueue`; the callback
+/// fires on the main queue.
 public final class UsageMonitor {
     public typealias Callback = (UsageSnapshot) -> Void
 
-    private let pollInterval: TimeInterval
+    private let tickInterval: TimeInterval
+    private let root: URL
     private let workQueue = DispatchQueue(label: "cct.usage-monitor", qos: .utility)
     private var timer: DispatchSourceTimer?
+    private var watcher: FSEventsWatcher?
+    private let scanner: IncrementalScanner
     private var plan: PlanTier
     private let onUpdate: Callback
+    private var initialLoadComplete = false
 
-    public init(plan: PlanTier, pollInterval: TimeInterval = 30, onUpdate: @escaping Callback) {
+    public init(
+        plan: PlanTier,
+        root: URL = TranscriptScanner.defaultRoot,
+        tickInterval: TimeInterval = 30,
+        onUpdate: @escaping Callback
+    ) {
         self.plan = plan
-        self.pollInterval = pollInterval
+        self.root = root
+        self.tickInterval = tickInterval
+        self.scanner = IncrementalScanner(root: root)
         self.onUpdate = onUpdate
     }
 
     public func start() {
-        scanOnce()
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            self.scanner.loadInitial()
+            self.initialLoadComplete = true
+            self.emitSnapshot()
+        }
+
+        let watcher = FSEventsWatcher(paths: [root], latency: 1.0, queue: workQueue) { [weak self] paths in
+            guard let self else { return }
+            // Filter to .jsonl paths so we don't re-scan on every dir touch.
+            let jsonlPaths = paths.filter { $0.hasSuffix(".jsonl") }
+            guard !jsonlPaths.isEmpty else { return }
+            self.scanner.applyChanges(forPaths: jsonlPaths)
+            if self.initialLoadComplete {
+                self.emitSnapshot()
+            }
+        }
+        watcher.start()
+        self.watcher = watcher
+
+        // Tick timer keeps the "resets in" countdown current — re-emits the
+        // snapshot from in-memory entries (no file I/O).
         let t = DispatchSource.makeTimerSource(queue: workQueue)
-        t.schedule(deadline: .now() + pollInterval, repeating: pollInterval)
-        t.setEventHandler { [weak self] in self?.scanOnce() }
+        t.schedule(deadline: .now() + tickInterval, repeating: tickInterval)
+        t.setEventHandler { [weak self] in
+            guard let self, self.initialLoadComplete else { return }
+            self.emitSnapshot()
+        }
         t.resume()
         timer = t
     }
@@ -83,24 +119,30 @@ public final class UsageMonitor {
     public func stop() {
         timer?.cancel()
         timer = nil
+        watcher?.stop()
+        watcher = nil
     }
 
     public func setPlan(_ newPlan: PlanTier) {
         workQueue.async { [weak self] in
             guard let self else { return }
             self.plan = newPlan
-            self.scanOnce()
+            self.emitSnapshot()
         }
     }
 
     public func refreshNow() {
-        workQueue.async { [weak self] in self?.scanOnce() }
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            // Force a directory rediscovery in case FSEvents missed something.
+            self.scanner.applyChanges(forPaths: nil)
+            self.emitSnapshot()
+        }
     }
 
-    private func scanOnce() {
-        let now = Date()
-        let entries = TranscriptScanner.loadAllEntries()
-        let snapshot = Self.snapshot(from: entries, plan: plan, now: now)
+    private func emitSnapshot() {
+        let entries = scanner.currentEntries()
+        let snapshot = Self.snapshot(from: entries, plan: plan, now: Date())
         DispatchQueue.main.async { [onUpdate] in
             onUpdate(snapshot)
         }

@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         render(snapshot: .empty)
         rebuildMenu()
 
-        monitor = UsageMonitor(plan: plan, pollInterval: 30) { [weak self] snap in
+        monitor = UsageMonitor(plan: plan, tickInterval: 30) { [weak self] snap in
             self?.snapshot = snap
             self?.render(snapshot: snap)
             self?.rebuildMenu()
