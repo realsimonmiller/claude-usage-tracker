@@ -175,16 +175,18 @@ ncu(entry) = modelWeight(entry.model)
 
 | Plan | 5h cap (NCU) | 7d cap (NCU) |
 |---|---|---|
-| Pro | 5 | 70 |
-| Max 5× | 25 | 350 |
-| Max 20× | 100 | 1400 |
+| Pro | 5.2 | 70 |
+| Max 5× | 26 | 350 |
+| Max 20× | 104 | 1400 |
 
-**Calibration math (Max 5× anchor):** dogfooding screenshot of claude.ai showed `Current session: 80% used` and `Weekly limits — All models: 15% used`, while our parser reported 20.0 NCU in the active 5h block and 51.7 NCU over the 7d window for the same instant. Solving:
+**Calibration math (Max 5× anchor):** two dogfooding observations from claude.ai/settings/usage:
 
-- 5h cap = 20.0 NCU / 0.80 = **25 NCU**
-- 7d cap = 51.7 NCU / 0.15 ≈ **345 NCU** (rounded to 350)
+| Moment | Our NCU | Anthropic % | Implied cap |
+|---|---|---|---|
+| 2026-04-23 14:30 UTC | 20.00 | 80% | 25.0 |
+| 2026-04-23 17:00 UTC | 25.85 | 96% | 26.9 |
 
-Pro and Max 20× are scaled 1×/4× from the Max 5× anchor per Anthropic's standard plan ratios. Pre-calibration heuristics (5h: 50 / 250 / 1000) were ~10× too generous, which made the HUD show ~8% when the user was actually at ~80%.
+Both points are internally consistent (NCU/$ ratio stays at ~0.98 vs ccusage's reported cost), so the real cap sits around **26 NCU** — the first sample's 80% was likely Anthropic rounding up from ~78%. We use 26 as the anchor; Pro and Max 20× are scaled 1×/4× per Anthropic's standard plan ratios. Pre-calibration heuristics (5h: 50 / 250 / 1000) were ~10× too generous and made the HUD show ~8% when the user was actually at ~80%.
 
 **Future refinement:**
 1. Re-anchor whenever Anthropic publishes any numeric cap.
