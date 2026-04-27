@@ -159,7 +159,10 @@ public final class UsageMonitor {
         let cap7d = plan.cap7d
         let pct5h = cap5h > 0 ? Int((totals5h.ncu / cap5h) * 100) : 0
         let pct7d = cap7d > 0 ? Int((totals7d.ncu / cap7d) * 100) : 0
-        let driving = max(pct5h, pct7d)
+        // The collapsed menu bar (face + %) is driven by the 5h block only —
+        // it's the cap users actually feel from minute to minute. 7d is shown
+        // in the expanded menu for context.
+        let driving = pct5h
         let bucket: HealthBucket = entries.isEmpty ? .noData : .from(percent: driving)
 
         return UsageSnapshot(
