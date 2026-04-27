@@ -2,31 +2,38 @@ import AppKit
 import ClaudeUsageTrackerCore
 
 private let planDefaultsKey = "cct.planTier"
+private let weeklyResetDefaultsKey = "cct.weeklyResetOverride"
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var monitor: UsageMonitor!
     private var snapshot: UsageSnapshot = .empty
     private var plan: PlanTier = .pro
+    private var weeklyResetOverride: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
         plan = loadPlan()
+        weeklyResetOverride = loadWeeklyReset()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
         render(snapshot: .empty)
         rebuildMenu()
 
-        monitor = UsageMonitor(plan: plan, tickInterval: 30) { [weak self] snap in
+        monitor = UsageMonitor(
+            plan: plan,
+            weeklyResetOverride: weeklyResetOverride,
+            tickInterval: 30
+        ) { [weak self] snap in
             self?.snapshot = snap
             self?.render(snapshot: snap)
             self?.rebuildMenu()
         }
         monitor.start()
 
-        NSLog("[CCT] launched. plan=\(plan.displayName)")
+        NSLog("[CCT] launched. plan=\(plan.displayName) weeklyReset=\(String(describing: weeklyResetOverride))")
     }
 
     private func render(snapshot snap: UsageSnapshot) {
@@ -51,13 +58,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             loading.isEnabled = false
             menu.addItem(loading)
         } else {
-            menu.addItem(disabledItem("  5h:  \(formatNCU(snapshot.totals5h.ncu)) / \(formatNCU(plan.cap5h))  (\(snapshot.percent5h)%)"))
+            menu.addItem(disabledItem("  5h:      \(formatNCU(snapshot.totals5h.ncu)) / \(formatNCU(plan.cap5h))  (\(snapshot.percent5h)%)"))
             if let block = snapshot.activeBlock {
-                menu.addItem(disabledItem("       resets in \(formatRemaining(block.remainingTime()))"))
+                menu.addItem(disabledItem("           resets in \(formatRemaining(block.remainingTime()))"))
             } else {
-                menu.addItem(disabledItem("       no active block (idle >5h)"))
+                menu.addItem(disabledItem("           no active block (idle >5h)"))
             }
-            menu.addItem(disabledItem("  7d:  \(formatNCU(snapshot.totals7d.ncu)) / \(formatNCU(plan.cap7d))  (\(snapshot.percent7d)%)"))
+            let weeklySource = weeklyResetOverride == nil ? "auto" : "calibrated"
+            menu.addItem(disabledItem("  weekly:  \(formatNCU(snapshot.totals7d.ncu)) / \(formatNCU(plan.cap7d))  (\(snapshot.percent7d)%)  [\(weeklySource)]"))
+            if let week = snapshot.activeWeek {
+                menu.addItem(disabledItem("           resets \(formatResetClock(week.endsAt))"))
+            } else {
+                menu.addItem(disabledItem("           no active week (idle >7d)"))
+            }
             menu.addItem(disabledItem("  state: \(snapshot.bucket.displayName)"))
             menu.addItem(disabledItem("  entries: \(snapshot.entryCount) (after dedup)"))
             menu.addItem(disabledItem("  updated: \(formatTimeAgo(snapshot.asOf))"))
@@ -82,6 +95,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.state = (tier == plan) ? .on : .off
             item.representedObject = tier.rawValue
             menu.addItem(item)
+        }
+
+        menu.addItem(.separator())
+
+        let calibrate = NSMenuItem(
+            title: weeklyResetOverride == nil
+                ? "Calibrate weekly reset…"
+                : "Recalibrate weekly reset…",
+            action: #selector(calibrateWeeklyReset),
+            keyEquivalent: ""
+        )
+        calibrate.target = self
+        menu.addItem(calibrate)
+        if weeklyResetOverride != nil {
+            let clear = NSMenuItem(
+                title: "  Clear weekly override (use auto-detect)",
+                action: #selector(clearWeeklyReset),
+                keyEquivalent: ""
+            )
+            clear.target = self
+            menu.addItem(clear)
         }
 
         menu.addItem(.separator())
@@ -140,7 +174,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             bucket: bucket,
             asOf: Date(),
             entryCount: snapshot.entryCount,
-            activeBlock: nil
+            activeBlock: nil,
+            activeWeek: nil
         )
         snapshot = fakeSnap
         render(snapshot: fakeSnap)
@@ -154,6 +189,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func savePlan(_ tier: PlanTier) {
         UserDefaults.standard.set(tier.rawValue, forKey: planDefaultsKey)
+    }
+
+    private func loadWeeklyReset() -> Date? {
+        guard let stored = UserDefaults.standard.object(forKey: weeklyResetDefaultsKey) as? Date else {
+            return nil
+        }
+        // Auto-roll forward if the stored reset has already passed: anchor +7d
+        // until it lands in the future. Saves the user from re-entering each
+        // week as long as Anthropic doesn't shift the reset day on them.
+        var d = stored
+        let now = Date()
+        let week: TimeInterval = 7 * 24 * 60 * 60
+        while d <= now { d.addTimeInterval(week) }
+        if d != stored {
+            UserDefaults.standard.set(d, forKey: weeklyResetDefaultsKey)
+        }
+        return d
+    }
+
+    private func saveWeeklyReset(_ date: Date?) {
+        if let date = date {
+            UserDefaults.standard.set(date, forKey: weeklyResetDefaultsKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: weeklyResetDefaultsKey)
+        }
+    }
+
+    @objc private func calibrateWeeklyReset() {
+        let alert = NSAlert()
+        alert.messageText = "Calibrate weekly reset"
+        alert.informativeText = "Pick the next reset time as shown on claude.ai/settings/usage (e.g. \"Resets Sun 1:00 AM\" → set Sun at 01:00). The override re-rolls weekly."
+
+        let picker = NSDatePicker(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        picker.datePickerStyle = .textFieldAndStepper
+        picker.datePickerElements = [.yearMonthDay, .hourMinute]
+        picker.dateValue = weeklyResetOverride ?? Date().addingTimeInterval(24 * 3600)
+        picker.minDate = Date()
+
+        alert.accessoryView = picker
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+        let picked = picker.dateValue
+        weeklyResetOverride = picked
+        saveWeeklyReset(picked)
+        monitor.setWeeklyResetOverride(picked)
+        rebuildMenu()
+        NSLog("[CCT] weekly reset override -> \(picked)")
+    }
+
+    @objc private func clearWeeklyReset() {
+        weeklyResetOverride = nil
+        saveWeeklyReset(nil)
+        monitor.setWeeklyResetOverride(nil)
+        rebuildMenu()
+        NSLog("[CCT] weekly reset override cleared")
     }
 }
 
@@ -170,10 +264,20 @@ private func formatTimeAgo(_ date: Date) -> String {
 
 private func formatRemaining(_ secs: TimeInterval) -> String {
     let s = Int(secs)
-    let h = s / 3600
+    let d = s / 86400
+    let h = (s % 86400) / 3600
     let m = (s % 3600) / 60
+    if d > 0 { return "\(d)d \(h)h" }
     if h > 0 { return "\(h)h \(m)m" }
     return "\(m)m"
+}
+
+private func formatResetClock(_ date: Date) -> String {
+    let secs = date.timeIntervalSince(Date())
+    if secs < 24 * 3600 { return "in \(formatRemaining(secs))" }
+    let f = DateFormatter()
+    f.dateFormat = "EEE h:mm a"
+    return "\(f.string(from: date))  (in \(formatRemaining(secs)))"
 }
 
 @main

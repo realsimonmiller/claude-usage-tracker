@@ -201,6 +201,10 @@ Anthropic's actual semantics: a 5h timer starts on the *first* message of a fres
 
 > **M2 finding (2026-04-23):** Claude Code re-emits identical assistant turns into multiple JSONL files when sessions are resumed or branched. The aggregator must dedupe on `(message.id, requestId)` — without this we over-count by ~2×. Implemented in `TranscriptScanner.deduplicate`.
 
+> **M6 finding (2026-04-27):** The 7-day cap is **NOT** a fixed weekly reset and **NOT** a rolling 7d sum. Per Anthropic docs + community reverse-engineering ([HN 45696713](https://news.ycombinator.com/item?id=45696713)): a weekly window opens on the first message after the previous window expired and runs exactly 7 days. So the user's reset day drifts forward whenever they go quiet across a window boundary. Same shape as the 5h block algorithm but no idle-gap rule and no hour-flooring. Implemented in `WeeklyWindowDetector`.
+>
+> Caveat: our auto-detected weekly anchor walks chronologically from the user's first transcript, which can land on a different alignment than Anthropic's actual cycle (Anthropic counts from subscription start, may have shifted resets we never observed, etc.). When the user pastes their next reset time from claude.ai, we anchor to that exact end and ignore auto-detection — `WeeklyWindowDetector.windowAnchored(endingAt:)`. The override re-rolls forward by 7 days when it expires, so the user only enters it once until Anthropic shifts it.
+
 ```swift
 func sum(window: TimeInterval, now: Date = .now) -> Double {
     let cutoff = now.addingTimeInterval(-window)

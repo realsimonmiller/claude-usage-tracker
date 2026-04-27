@@ -13,6 +13,9 @@ public struct UsageSnapshot: Sendable {
     /// The 5h block currently in flight, if any. `nil` when the user has been
     /// idle for >5h (in which case `totals5h` is `.zero`).
     public let activeBlock: UsageBlock?
+    /// The 7-day weekly window currently in flight. `nil` if the user hasn't
+    /// messaged within the past 7 days.
+    public let activeWeek: WeeklyWindow?
 
     public static let empty = UsageSnapshot(
         plan: .pro,
@@ -24,7 +27,8 @@ public struct UsageSnapshot: Sendable {
         bucket: .noData,
         asOf: Date(),
         entryCount: 0,
-        activeBlock: nil
+        activeBlock: nil,
+        activeWeek: nil
     )
 
     public init(
@@ -37,7 +41,8 @@ public struct UsageSnapshot: Sendable {
         bucket: HealthBucket,
         asOf: Date,
         entryCount: Int,
-        activeBlock: UsageBlock?
+        activeBlock: UsageBlock?,
+        activeWeek: WeeklyWindow?
     ) {
         self.plan = plan
         self.totals5h = totals5h
@@ -49,6 +54,7 @@ public struct UsageSnapshot: Sendable {
         self.asOf = asOf
         self.entryCount = entryCount
         self.activeBlock = activeBlock
+        self.activeWeek = activeWeek
     }
 }
 
@@ -67,16 +73,22 @@ public final class UsageMonitor {
     private var watcher: FSEventsWatcher?
     private let scanner: IncrementalScanner
     private var plan: PlanTier
+    /// User-supplied weekly anchor. When set, it's the next claude.ai-reported
+    /// reset moment; we render the weekly window as `[anchor - 7d, anchor)`
+    /// instead of using auto-detection.
+    private var weeklyResetOverride: Date?
     private let onUpdate: Callback
     private var initialLoadComplete = false
 
     public init(
         plan: PlanTier,
+        weeklyResetOverride: Date? = nil,
         root: URL = TranscriptScanner.defaultRoot,
         tickInterval: TimeInterval = 30,
         onUpdate: @escaping Callback
     ) {
         self.plan = plan
+        self.weeklyResetOverride = weeklyResetOverride
         self.root = root
         self.tickInterval = tickInterval
         self.scanner = IncrementalScanner(root: root)
@@ -131,6 +143,14 @@ public final class UsageMonitor {
         }
     }
 
+    public func setWeeklyResetOverride(_ next: Date?) {
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            self.weeklyResetOverride = next
+            self.emitSnapshot()
+        }
+    }
+
     public func refreshNow() {
         workQueue.async { [weak self] in
             guard let self else { return }
@@ -142,18 +162,37 @@ public final class UsageMonitor {
 
     private func emitSnapshot() {
         let entries = scanner.currentEntries()
-        let snapshot = Self.snapshot(from: entries, plan: plan, now: Date())
+        let snapshot = Self.snapshot(
+            from: entries,
+            plan: plan,
+            weeklyResetOverride: weeklyResetOverride,
+            now: Date()
+        )
         DispatchQueue.main.async { [onUpdate] in
             onUpdate(snapshot)
         }
     }
 
-    public static func snapshot(from entries: [UsageEntry], plan: PlanTier, now: Date = Date()) -> UsageSnapshot {
-        let sevenDays: TimeInterval = 7 * 24 * 60 * 60
-
+    public static func snapshot(
+        from entries: [UsageEntry],
+        plan: PlanTier,
+        weeklyResetOverride: Date? = nil,
+        now: Date = Date()
+    ) -> UsageSnapshot {
         let activeBlock = BlockDetector.activeBlock(from: entries, now: now)
+        let activeWeek: WeeklyWindow?
+        if let nextReset = weeklyResetOverride, nextReset > now {
+            // User pinned the next reset (from claude.ai). Anchor a window to it.
+            activeWeek = WeeklyWindowDetector.windowAnchored(
+                endingAt: nextReset, from: entries, now: now
+            )
+        } else {
+            // Auto-detect from message history. Approximate; may differ from
+            // Anthropic's actual alignment (see DESIGN.md §8).
+            activeWeek = WeeklyWindowDetector.activeWindow(from: entries, now: now)
+        }
         let totals5h = activeBlock?.totals ?? .zero
-        let totals7d = UsageAggregator.totals(for: entries, in: sevenDays, now: now)
+        let totals7d = activeWeek?.totals ?? .zero
 
         let cap5h = plan.cap5h
         let cap7d = plan.cap7d
@@ -175,7 +214,8 @@ public final class UsageMonitor {
             bucket: bucket,
             asOf: now,
             entryCount: entries.count,
-            activeBlock: activeBlock
+            activeBlock: activeBlock,
+            activeWeek: activeWeek
         )
     }
 }

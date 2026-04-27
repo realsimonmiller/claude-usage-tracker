@@ -105,5 +105,24 @@ if let block = BlockDetector.activeBlock(from: allEntries, now: now) {
     print("")
 }
 
+if let week = WeeklyWindowDetector.activeWindow(from: allEntries, now: now) {
+    let weekTotal = week.totals
+    let remaining = week.remainingTime(now: now)
+    let remD = Int(remaining) / 86400
+    let remH = (Int(remaining) % 86400) / 3600
+    print("┌─ active weekly window (anchored to first message of cycle)")
+    print("│  started:   \(ISO8601DateFormatter().string(from: week.startedAt))")
+    print("│  ends:      \(ISO8601DateFormatter().string(from: week.endsAt))  (in \(remD)d \(remH)h)")
+    print("│  turns:     \(week.entries.count)")
+    print("│  raw total: \(formatTokens(weekTotal.totalRawTokens))")
+    print("│  NCU:       \(String(format: "%.2f", weekTotal.ncu))")
+    print("└─")
+    print("")
+} else {
+    print("┌─ active weekly window: none (idle for >7d)")
+    print("└─")
+    print("")
+}
+
 printWindow(label: "rolling 5h (sliding, for comparison)", window: fiveHours)
-printWindow(label: "rolling 7d", window: sevenDays)
+printWindow(label: "rolling 7d (sliding, for comparison)", window: sevenDays)
