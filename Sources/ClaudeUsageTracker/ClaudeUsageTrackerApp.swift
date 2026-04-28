@@ -71,11 +71,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func render(snapshot snap: UsageSnapshot) {
         guard let button = statusItem.button else { return }
-        let face = FaceRenderer.image(for: snap.bucket, pointSize: 18)
-        face.isTemplate = false
-        button.image = face
+        let mascot = MascotRenderer.image(percentUsed: snap.drivingPercent, pointSize: 18)
+        mascot.isTemplate = false
+        button.image = mascot
         button.imagePosition = .imageLeft
-        // Tiny gap between sprite and percent text.
         button.imageHugsTitle = true
         if snap.bucket == .noData {
             button.title = " ‒"
