@@ -71,7 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func render(snapshot snap: UsageSnapshot) {
         guard let button = statusItem.button else { return }
-        let mascot = MascotRenderer.image(percentUsed: snap.drivingPercent, pointSize: 18)
+        let mascot = MascotRenderer.image(percentUsed: snap.drivingPercent, pointHeight: 16)
         mascot.isTemplate = false
         button.image = mascot
         button.imagePosition = .imageLeft

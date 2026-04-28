@@ -7,56 +7,64 @@ import AppKit
 enum MascotRenderer {
     private struct CacheKey: Hashable {
         let percent: Int
-        let pixelSize: Int
+        let pixelHeight: Int
     }
     private static var cache: [CacheKey: NSImage] = [:]
 
-    static func image(percentUsed: Int, pointSize: CGFloat) -> NSImage {
+    /// Render the mascot at `pointHeight` points tall. Width is derived from
+    /// the grid's aspect ratio so cells stay square.
+    static func image(percentUsed: Int, pointHeight: CGFloat) -> NSImage {
         let percent = max(0, min(100, percentUsed))
         let scale = NSScreen.main?.backingScaleFactor ?? 2.0
-        let pixelSize = Int((pointSize * scale).rounded())
-        let key = CacheKey(percent: percent, pixelSize: pixelSize)
+        let pixelHeight = Int((pointHeight * scale).rounded())
+        let key = CacheKey(percent: percent, pixelHeight: pixelHeight)
         if let cached = cache[key] { return cached }
-        let image = render(percentUsed: percent, pointSize: pointSize)
+        let image = render(percentUsed: percent, pointHeight: pointHeight)
         cache[key] = image
         return image
     }
 
-    /// 9×9 pixel mascot — squat blocky body, two black eyes, four short legs.
-    /// Flat top with 1-pixel side notches just below it (matches the squarish
-    /// silhouette of the actual mascot, avoids the Pacman-ghost dome).
+    /// 13-wide × 10-tall mascot. Wider-than-tall silhouette; the middle rows
+    /// extend a column further on each side than the top/bottom rows, which
+    /// gives the natural "side nub" shoulders. Eyes are 1×3 vertical bars.
+    /// Four legs in a 1-2-1 grouping (cols 1, 4, 8, 11).
     /// `X` = body (drains), `K` = eye (always black), `.` = transparent.
     private static let grid: [String] = [
-        ". X X X X X X X .",
-        "X X X X X X X X X",
-        "X K K X X X K K X",
-        "X K K X X X K K X",
-        "X X X X X X X X X",
-        "X X X X X X X X X",
-        "X X X X X X X X X",
-        "X X X X X X X X X",
-        ". X . X . X . X .",
+        ". X X X X X X X X X X X .",
+        "X X X X X X X X X X X X X",
+        "X X K X X X X X X X K X X",
+        "X X K X X X X X X X K X X",
+        "X X K X X X X X X X K X X",
+        "X X X X X X X X X X X X X",
+        "X X X X X X X X X X X X X",
+        ". X X X X X X X X X X X .",
+        ". X . . X . . . X . . X .",
+        ". X . . X . . . X . . X .",
     ]
 
-    private static func render(percentUsed: Int, pointSize: CGFloat) -> NSImage {
-        let cells = grid.count
+    private static func render(percentUsed: Int, pointHeight: CGFloat) -> NSImage {
+        let rows = grid.count
+        let cols = (grid.first ?? "").replacingOccurrences(of: " ", with: "").count
+        let cellSize = pointHeight / CGFloat(rows)
+        let pointWidth = cellSize * CGFloat(cols)
+
         let percentRemaining = 100 - percentUsed
-        // Number of rows still "filled" (counted from the bottom).
-        let filledRows = max(0, min(cells, (cells * percentRemaining + 50) / 100))
-        let drainedRows = cells - filledRows
+        // Number of body rows still "filled," counted from the bottom. The
+        // legs (last two rows) drain last, which feels right — the creature
+        // shrinks down to its feet before disappearing.
+        let filledRows = max(0, min(rows, (rows * percentRemaining + 50) / 100))
+        let drainedRows = rows - filledRows
 
         let filledColor = filledFillColor(percentUsed: percentUsed)
         let drainedColor = NSColor(white: 0.55, alpha: 0.45)
         let eyeColor = NSColor.black
 
-        let image = NSImage(size: NSSize(width: pointSize, height: pointSize))
+        let image = NSImage(size: NSSize(width: pointWidth, height: pointHeight))
         image.lockFocus()
         defer { image.unlockFocus() }
 
         guard let ctx = NSGraphicsContext.current?.cgContext else { return image }
         ctx.interpolationQuality = .none
-
-        let cellPoints = pointSize / CGFloat(cells)
 
         for (rowIdx, row) in grid.enumerated() {
             let chars = Array(row.replacingOccurrences(of: " ", with: ""))
@@ -68,10 +76,10 @@ enum MascotRenderer {
                 default:  color = nil
                 }
                 guard let c = color else { continue }
-                let x = CGFloat(colIdx) * cellPoints
-                let y = pointSize - CGFloat(rowIdx + 1) * cellPoints
+                let x = CGFloat(colIdx) * cellSize
+                let y = pointHeight - CGFloat(rowIdx + 1) * cellSize
                 ctx.setFillColor(c.cgColor)
-                ctx.fill(CGRect(x: x, y: y, width: cellPoints, height: cellPoints))
+                ctx.fill(CGRect(x: x, y: y, width: cellSize, height: cellSize))
             }
         }
         return image

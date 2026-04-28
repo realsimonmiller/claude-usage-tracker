@@ -37,9 +37,8 @@ struct PopoverView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(nsImage: MascotRenderer.image(percentUsed: snapshot.drivingPercent, pointSize: 44))
+            Image(nsImage: MascotRenderer.image(percentUsed: snapshot.drivingPercent, pointHeight: 40))
                 .interpolation(.none)
-                .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Claude Code Usage")
                     .font(.system(size: 14, weight: .semibold))
