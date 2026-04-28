@@ -5,6 +5,7 @@ public struct UsageEntry: Sendable {
     public let model: String
     public let messageId: String?
     public let requestId: String?
+    public let cwd: String?
     public let inputTokens: Int
     public let cacheCreationTokens: Int
     public let cacheReadTokens: Int
@@ -15,6 +16,7 @@ public struct UsageEntry: Sendable {
         model: String,
         messageId: String? = nil,
         requestId: String? = nil,
+        cwd: String? = nil,
         inputTokens: Int,
         cacheCreationTokens: Int,
         cacheReadTokens: Int,
@@ -24,6 +26,7 @@ public struct UsageEntry: Sendable {
         self.model = model
         self.messageId = messageId
         self.requestId = requestId
+        self.cwd = cwd
         self.inputTokens = inputTokens
         self.cacheCreationTokens = cacheCreationTokens
         self.cacheReadTokens = cacheReadTokens

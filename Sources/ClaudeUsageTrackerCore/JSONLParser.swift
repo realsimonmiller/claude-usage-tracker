@@ -5,6 +5,7 @@ public enum JSONLParser {
         let type: String?
         let timestamp: String?
         let requestId: String?
+        let cwd: String?
         let message: MessageBlock?
 
         struct MessageBlock: Decodable {
@@ -53,6 +54,7 @@ public enum JSONLParser {
             model: model,
             messageId: parsed.message?.id,
             requestId: parsed.requestId,
+            cwd: parsed.cwd,
             inputTokens: usage.input_tokens ?? 0,
             cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
             cacheReadTokens: usage.cache_read_input_tokens ?? 0,

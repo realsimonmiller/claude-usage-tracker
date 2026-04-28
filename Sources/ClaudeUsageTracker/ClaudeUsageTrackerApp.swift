@@ -1,15 +1,20 @@
 import AppKit
+import SwiftUI
 import ClaudeUsageTrackerCore
 
 private let planDefaultsKey = "cct.planTier"
 private let weeklyResetDefaultsKey = "cct.weeklyResetOverride"
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private var monitor: UsageMonitor!
     private var snapshot: UsageSnapshot = .empty
     private var plan: PlanTier = .pro
     private var weeklyResetOverride: Date?
+
+    private var popover: NSPopover!
+    private var hostingController: NSHostingController<PopoverView>!
+    private var eventMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -20,7 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
         render(snapshot: .empty)
-        rebuildMenu()
+        wireStatusButton()
+
+        popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.delegate = self
+        hostingController = NSHostingController(rootView: makePopoverView())
+        popover.contentViewController = hostingController
 
         monitor = UsageMonitor(
             plan: plan,
@@ -29,11 +41,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] snap in
             self?.snapshot = snap
             self?.render(snapshot: snap)
-            self?.rebuildMenu()
+            self?.refreshPopoverContentIfNeeded()
         }
         monitor.start()
 
         NSLog("[CCT] launched. plan=\(plan.displayName) weeklyReset=\(String(describing: weeklyResetOverride))")
+    }
+
+    // MARK: - Status item
+
+    private func wireStatusButton() {
+        guard let button = statusItem.button else { return }
+        button.target = self
+        button.action = #selector(statusButtonClicked(_:))
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+    }
+
+    @objc private func statusButtonClicked(_ sender: NSStatusBarButton) {
+        let event = NSApp.currentEvent
+        let isRightClick =
+            event?.type == .rightMouseUp ||
+            (event?.type == .leftMouseUp && event?.modifierFlags.contains(.control) == true)
+        if isRightClick {
+            showRightClickMenu()
+        } else {
+            togglePopover()
+        }
     }
 
     private func render(snapshot snap: UsageSnapshot) {
@@ -46,48 +79,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func rebuildMenu() {
-        let menu = NSMenu()
+    // MARK: - Popover
 
-        let header = NSMenuItem(title: "Claude Usage Tracker", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        menu.addItem(header)
+    private func makePopoverView() -> PopoverView {
+        PopoverView(
+            snapshot: snapshot,
+            weeklyOverrideActive: weeklyResetOverride != nil,
+            onRefresh: { [weak self] in self?.monitor.refreshNow() },
+            onQuit: { NSApp.terminate(nil) }
+        )
+    }
 
-        if snapshot.bucket == .noData {
-            let loading = NSMenuItem(title: "  Scanning transcripts…", action: nil, keyEquivalent: "")
-            loading.isEnabled = false
-            menu.addItem(loading)
-        } else {
-            menu.addItem(disabledItem("  5h:      \(formatNCU(snapshot.totals5h.ncu)) / \(formatNCU(plan.cap5h))  (\(snapshot.percent5h)%)"))
-            if let block = snapshot.activeBlock {
-                menu.addItem(disabledItem("           resets in \(formatRemaining(block.remainingTime()))"))
-            } else {
-                menu.addItem(disabledItem("           no active block (idle >5h)"))
-            }
-            let weeklySource = weeklyResetOverride == nil ? "auto" : "calibrated"
-            menu.addItem(disabledItem("  weekly:  \(formatNCU(snapshot.totals7d.ncu)) / \(formatNCU(plan.cap7d))  (\(snapshot.percent7d)%)  [\(weeklySource)]"))
-            if let week = snapshot.activeWeek {
-                menu.addItem(disabledItem("           resets \(formatResetClock(week.endsAt))"))
-            } else {
-                menu.addItem(disabledItem("           no active week (idle >7d)"))
-            }
-            menu.addItem(disabledItem("  state: \(snapshot.bucket.displayName)"))
-            menu.addItem(disabledItem("  entries: \(snapshot.entryCount) (after dedup)"))
-            menu.addItem(disabledItem("  updated: \(formatTimeAgo(snapshot.asOf))"))
+    private func togglePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+            return
         }
+        guard let button = statusItem.button else { return }
+        hostingController.rootView = makePopoverView()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
+        installOutsideClickMonitor()
+    }
 
-        menu.addItem(.separator())
+    private func refreshPopoverContentIfNeeded() {
+        guard popover.isShown else { return }
+        hostingController.rootView = makePopoverView()
+    }
 
-        let refresh = NSMenuItem(title: "Refresh now", action: #selector(refreshNow), keyEquivalent: "r")
-        refresh.target = self
-        menu.addItem(refresh)
+    private func installOutsideClickMonitor() {
+        if let m = eventMonitor { NSEvent.removeMonitor(m); eventMonitor = nil }
+        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.popover.performClose(nil)
+        }
+    }
 
-        menu.addItem(.separator())
+    func popoverDidClose(_ notification: Notification) {
+        if let m = eventMonitor { NSEvent.removeMonitor(m); eventMonitor = nil }
+    }
+
+    // MARK: - Right-click menu
+
+    private func showRightClickMenu() {
+        let menu = NSMenu()
 
         menu.addItem(disabledItem("Plan"))
         for tier in PlanTier.allCases {
             let item = NSMenuItem(
-                title: "  \(tier.displayName)  (5h: \(Int(tier.cap5h))  ·  7d: \(Int(tier.cap7d)))",
+                title: "  \(tier.displayName)  (5h: \(formatNCU(tier.cap5h))  ·  weekly: \(Int(tier.cap7d)))",
                 action: #selector(selectPlan(_:)),
                 keyEquivalent: ""
             )
@@ -100,9 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let calibrate = NSMenuItem(
-            title: weeklyResetOverride == nil
-                ? "Calibrate weekly reset…"
-                : "Recalibrate weekly reset…",
+            title: weeklyResetOverride == nil ? "Calibrate weekly reset…" : "Recalibrate weekly reset…",
             action: #selector(calibrateWeeklyReset),
             keyEquivalent: ""
         )
@@ -117,6 +154,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             clear.target = self
             menu.addItem(clear)
         }
+
+        menu.addItem(.separator())
+
+        let refresh = NSMenuItem(title: "Refresh now", action: #selector(refreshNow), keyEquivalent: "r")
+        refresh.target = self
+        menu.addItem(refresh)
 
         menu.addItem(.separator())
 
@@ -140,6 +183,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ))
 
         statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil  // detach so subsequent left-clicks go back to popover
     }
 
     private func disabledItem(_ title: String) -> NSMenuItem {
@@ -158,7 +203,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         plan = tier
         savePlan(tier)
         monitor.setPlan(tier)
-        rebuildMenu()
         NSLog("[CCT] plan -> \(tier.displayName)")
     }
 
@@ -179,8 +223,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         snapshot = fakeSnap
         render(snapshot: fakeSnap)
-        rebuildMenu()
     }
+
+    // MARK: - Persistence
 
     private func loadPlan() -> PlanTier {
         let raw = UserDefaults.standard.string(forKey: planDefaultsKey) ?? PlanTier.pro.rawValue
@@ -195,9 +240,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let stored = UserDefaults.standard.object(forKey: weeklyResetDefaultsKey) as? Date else {
             return nil
         }
-        // Auto-roll forward if the stored reset has already passed: anchor +7d
-        // until it lands in the future. Saves the user from re-entering each
-        // week as long as Anthropic doesn't shift the reset day on them.
         var d = stored
         let now = Date()
         let week: TimeInterval = 7 * 24 * 60 * 60
@@ -238,7 +280,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         weeklyResetOverride = picked
         saveWeeklyReset(picked)
         monitor.setWeeklyResetOverride(picked)
-        rebuildMenu()
         NSLog("[CCT] weekly reset override -> \(picked)")
     }
 
@@ -246,38 +287,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         weeklyResetOverride = nil
         saveWeeklyReset(nil)
         monitor.setWeeklyResetOverride(nil)
-        rebuildMenu()
         NSLog("[CCT] weekly reset override cleared")
     }
 }
 
 private func formatNCU(_ ncu: Double) -> String {
-    String(format: "%.1f", ncu)
-}
-
-private func formatTimeAgo(_ date: Date) -> String {
-    let secs = Int(Date().timeIntervalSince(date))
-    if secs < 60   { return "\(secs)s ago" }
-    if secs < 3600 { return "\(secs / 60)m ago" }
-    return "\(secs / 3600)h ago"
-}
-
-private func formatRemaining(_ secs: TimeInterval) -> String {
-    let s = Int(secs)
-    let d = s / 86400
-    let h = (s % 86400) / 3600
-    let m = (s % 3600) / 60
-    if d > 0 { return "\(d)d \(h)h" }
-    if h > 0 { return "\(h)h \(m)m" }
-    return "\(m)m"
-}
-
-private func formatResetClock(_ date: Date) -> String {
-    let secs = date.timeIntervalSince(Date())
-    if secs < 24 * 3600 { return "in \(formatRemaining(secs))" }
-    let f = DateFormatter()
-    f.dateFormat = "EEE h:mm a"
-    return "\(f.string(from: date))  (in \(formatRemaining(secs)))"
+    if ncu == ncu.rounded() { return String(format: "%.0f", ncu) }
+    return String(format: "%.1f", ncu)
 }
 
 @main
