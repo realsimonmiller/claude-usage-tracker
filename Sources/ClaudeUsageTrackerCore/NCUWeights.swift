@@ -27,7 +27,12 @@ public enum ModelFamily: String, Sendable {
 public enum NCUWeights {
     public static let inputWeight: Double = 1.00
     public static let cacheCreationWeight: Double = 1.25
-    public static let cacheReadWeight: Double = 0.10
+    /// Cache reads don't count toward the API's published rate limits
+    /// (per docs), and observed claude.ai "% used" is consistent with cache
+    /// reads being free against the plan cap too. Dropped from 0.10 → 0.0
+    /// after the 4/28 calibration showed our % was ~1.6× Anthropic's on a
+    /// cache-read-heavy block.
+    public static let cacheReadWeight: Double = 0.00
     public static let outputWeight: Double = 5.00
 
     public static func ncu(for entry: UsageEntry) -> Double {

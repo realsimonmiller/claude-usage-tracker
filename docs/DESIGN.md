@@ -175,18 +175,20 @@ ncu(entry) = modelWeight(entry.model)
 
 | Plan | 5h cap (NCU) | 7d cap (NCU) |
 |---|---|---|
-| Pro | 5.2 | 70 |
-| Max 5× | 26 | 350 |
-| Max 20× | 104 | 1400 |
+| Pro | 6 | 70 |
+| Max 5× | 30 | 350 |
+| Max 20× | 120 | 1400 |
 
-**Calibration math (Max 5× anchor):** two dogfooding observations from claude.ai/settings/usage:
+**Calibration math (Max 5× anchor):** three dogfooding observations from claude.ai/settings/usage. The third sample exposed that our `cache_read` weight of 0.10 was way too high — Anthropic's docs explicitly say cache reads don't count toward rate limits, and the % cap behaves the same way. Dropping `cache_read` weight to 0.0 (see §7.1) and re-anchoring:
 
-| Moment | Our NCU | Anthropic % | Implied cap |
+| Moment | Our NCU (post-fix) | Anthropic % | Implied cap |
 |---|---|---|---|
-| 2026-04-23 14:30 UTC | 20.00 | 80% | 25.0 |
-| 2026-04-23 17:00 UTC | 25.85 | 96% | 26.9 |
+| 2026-04-23 17:00 UTC | (cache-heavy block, didn't recompute) | 96% | — |
+| 2026-04-28 (cache-heavy block) | 8.66 | 29% | **29.9** |
 
-Both points are internally consistent (NCU/$ ratio stays at ~0.98 vs ccusage's reported cost), so the real cap sits around **26 NCU** — the first sample's 80% was likely Anthropic rounding up from ~78%. We use 26 as the anchor; Pro and Max 20× are scaled 1×/4× per Anthropic's standard plan ratios. Pre-calibration heuristics (5h: 50 / 250 / 1000) were ~10× too generous and made the HUD show ~8% when the user was actually at ~80%.
+We anchor 5h Max 5× at **30 NCU**; Pro and Max 20× scale 1×/4×. Weekly caps unchanged for now — no fresh "All models" weekly % data point to anchor against.
+
+**Limitation:** Anthropic's "% used" doesn't appear to be a strictly linear function of any weighted token sum (different blocks produce different implied caps even after fixing cache_read). Best we can do without API access is approximate; the user can recalibrate the weekly window via the menu, and we may revisit the 5h formula if drift returns.
 
 **Future refinement:**
 1. Re-anchor whenever Anthropic publishes any numeric cap.

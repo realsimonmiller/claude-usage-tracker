@@ -19,9 +19,9 @@ public enum PlanTier: String, CaseIterable, Sendable {
     /// per Anthropic's standard plan ratios.
     public var cap5h: Double {
         switch self {
-        case .pro:    return 5.2
-        case .max5x:  return 26
-        case .max20x: return 104
+        case .pro:    return 6
+        case .max5x:  return 30
+        case .max20x: return 120
         }
     }
 
