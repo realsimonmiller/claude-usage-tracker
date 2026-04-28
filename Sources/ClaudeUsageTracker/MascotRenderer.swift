@@ -22,14 +22,16 @@ enum MascotRenderer {
         return image
     }
 
-    /// 9×9 pixel mascot — squat body, two black eyes, four short legs.
+    /// 9×9 pixel mascot — squat blocky body, two black eyes, four short legs.
+    /// Flat top with 1-pixel side notches just below it (matches the squarish
+    /// silhouette of the actual mascot, avoids the Pacman-ghost dome).
     /// `X` = body (drains), `K` = eye (always black), `.` = transparent.
     private static let grid: [String] = [
-        ". . X X X X X . .",
         ". X X X X X X X .",
         "X X X X X X X X X",
         "X K K X X X K K X",
         "X K K X X X K K X",
+        "X X X X X X X X X",
         "X X X X X X X X X",
         "X X X X X X X X X",
         "X X X X X X X X X",
