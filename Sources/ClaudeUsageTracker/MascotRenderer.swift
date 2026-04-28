@@ -24,22 +24,24 @@ enum MascotRenderer {
         return image
     }
 
-    /// 13-wide × 10-tall mascot. Wider-than-tall silhouette; the middle rows
-    /// extend a column further on each side than the top/bottom rows, which
-    /// gives the natural "side nub" shoulders. Eyes are 1×3 vertical bars.
-    /// Four legs in a 1-2-1 grouping (cols 1, 4, 8, 11).
+    /// 18-wide × 11-tall mascot, sampled directly from the reference image.
+    /// Body is 14 wide (cols 2-15); rows 5-6 extend the full 18 width to
+    /// produce the natural side-nub shoulders. Eyes are 1-wide × 3-tall
+    /// vertical bars at cols 4 and 13 (symmetric around the body's centerline
+    /// at col 8.5). Four legs in 1-2-1 grouping at cols 3, 5, 12, 14.
     /// `X` = body (drains), `K` = eye (always black), `.` = transparent.
     private static let grid: [String] = [
-        ". X X X X X X X X X X X .",
-        "X X X X X X X X X X X X X",
-        "X X K X X X X X X X K X X",
-        "X X K X X X X X X X K X X",
-        "X X K X X X X X X X K X X",
-        "X X X X X X X X X X X X X",
-        "X X X X X X X X X X X X X",
-        ". X X X X X X X X X X X .",
-        ". X . . X . . . X . . X .",
-        ". X . . X . . . X . . X .",
+        ". . X X X X X X X X X X X X X X . .",
+        ". . X X X X X X X X X X X X X X . .",
+        ". . X X K X X X X X X X X K X X . .",
+        ". . X X K X X X X X X X X K X X . .",
+        ". . X X K X X X X X X X X K X X . .",
+        "X X X X X X X X X X X X X X X X X X",
+        "X X X X X X X X X X X X X X X X X X",
+        ". . X X X X X X X X X X X X X X . .",
+        ". . X X X X X X X X X X X X X X . .",
+        ". . . X . X . . . . . . X . X . . .",
+        ". . . X . X . . . . . . X . X . . .",
     ]
 
     private static func render(percentUsed: Int, pointHeight: CGFloat) -> NSImage {
