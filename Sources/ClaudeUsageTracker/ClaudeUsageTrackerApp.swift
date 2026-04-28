@@ -8,9 +8,11 @@ private let weeklyResetDefaultsKey = "cct.weeklyResetOverride"
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private var monitor: UsageMonitor!
+    private var sync: ClaudeUsageSync!
     private var snapshot: UsageSnapshot = .empty
     private var plan: PlanTier = .pro
     private var weeklyResetOverride: Date?
+    private var lastSyncError: String?
 
     private var popover: NSPopover!
     private var hostingController: NSHostingController<PopoverView>!
@@ -45,6 +47,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         monitor.start()
 
+        // Background sync from claude.ai's own usage endpoint. Uses cookies
+        // from Chrome (one-time Keychain prompt). Falls back silently if Chrome
+        // isn't installed, the user is logged out, or the cookie is expired —
+        // we keep showing our calculated approximation in that case.
+        sync = ClaudeUsageSync(pollInterval: 300) { [weak self] result in
+            switch result {
+            case .success(let s):
+                self?.lastSyncError = nil
+                self?.monitor.updateSynced(s)
+                NSLog("[CCT] synced from claude.ai: 5h=%d%% 7d=%d%%", s.percent5h, s.percent7d)
+            case .failure(let e):
+                self?.lastSyncError = "\(e)"
+                NSLog("[CCT] sync failed: %@", "\(e)")
+            }
+        }
+        sync.start()
+
         NSLog("[CCT] launched. plan=\(plan.displayName) weeklyReset=\(String(describing: weeklyResetOverride))")
     }
 
@@ -71,15 +90,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func render(snapshot snap: UsageSnapshot) {
         guard let button = statusItem.button else { return }
-        let mascot = MascotRenderer.image(percentUsed: snap.drivingPercent, pointHeight: 16)
+        let pct = snap.displayDrivingPercent
+        let mascot = MascotRenderer.image(percentUsed: pct, pointHeight: 16)
         mascot.isTemplate = false
         button.image = mascot
         button.imagePosition = .imageLeft
         button.imageHugsTitle = true
-        if snap.bucket == .noData {
+        if snap.displayBucket == .noData {
             button.title = " ‒"
         } else {
-            button.title = " \(snap.drivingPercent)%"
+            button.title = " \(pct)%"
         }
     }
 
@@ -161,7 +181,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         menu.addItem(.separator())
 
-        let refresh = NSMenuItem(title: "Refresh now", action: #selector(refreshNow), keyEquivalent: "r")
+        // Sync from claude.ai status line + manual trigger
+        if let s = snapshot.synced {
+            let age = Int(s.ageSeconds)
+            let ageStr = age < 60 ? "\(age)s" : "\(age / 60)m"
+            menu.addItem(disabledItem("claude.ai sync: live (\(ageStr) ago)"))
+        } else if let err = lastSyncError {
+            menu.addItem(disabledItem("claude.ai sync: \(err)"))
+        } else {
+            menu.addItem(disabledItem("claude.ai sync: pending…"))
+        }
+        let syncNow = NSMenuItem(title: "Sync claude.ai now", action: #selector(syncNow), keyEquivalent: "s")
+        syncNow.target = self
+        menu.addItem(syncNow)
+
+        menu.addItem(.separator())
+
+        let refresh = NSMenuItem(title: "Refresh transcripts", action: #selector(refreshNow), keyEquivalent: "r")
         refresh.target = self
         menu.addItem(refresh)
 
@@ -199,6 +235,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func refreshNow() {
         monitor.refreshNow()
+    }
+
+    @objc private func syncNow() {
+        sync.refreshNow()
     }
 
     @objc private func selectPlan(_ sender: NSMenuItem) {

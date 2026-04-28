@@ -16,6 +16,10 @@ public struct UsageSnapshot: Sendable {
     /// The 7-day weekly window currently in flight. `nil` if the user hasn't
     /// messaged within the past 7 days.
     public let activeWeek: WeeklyWindow?
+    /// Live data pulled from claude.ai's own usage endpoint, if a recent sync
+    /// succeeded. When set, the `display*` accessors return these values
+    /// instead of our local approximations.
+    public let synced: SyncedUsage?
 
     public static let empty = UsageSnapshot(
         plan: .pro,
@@ -28,7 +32,8 @@ public struct UsageSnapshot: Sendable {
         asOf: Date(),
         entryCount: 0,
         activeBlock: nil,
-        activeWeek: nil
+        activeWeek: nil,
+        synced: nil
     )
 
     public init(
@@ -42,7 +47,8 @@ public struct UsageSnapshot: Sendable {
         asOf: Date,
         entryCount: Int,
         activeBlock: UsageBlock?,
-        activeWeek: WeeklyWindow?
+        activeWeek: WeeklyWindow?,
+        synced: SyncedUsage? = nil
     ) {
         self.plan = plan
         self.totals5h = totals5h
@@ -55,6 +61,33 @@ public struct UsageSnapshot: Sendable {
         self.entryCount = entryCount
         self.activeBlock = activeBlock
         self.activeWeek = activeWeek
+        self.synced = synced
+    }
+
+    /// 5h percent to show: prefers live claude.ai data when fresh.
+    public var displayPercent5h: Int {
+        if let s = synced, s.isFresh { return s.percent5h }
+        return percent5h
+    }
+    public var displayPercent7d: Int {
+        if let s = synced, s.isFresh { return s.percent7d }
+        return percent7d
+    }
+    public var displayDrivingPercent: Int {
+        if let s = synced, s.isFresh { return s.percent5h }
+        return drivingPercent
+    }
+    public var displayBlockResetAt: Date? {
+        if let r = synced?.reset5hAt, let s = synced, s.isFresh { return r }
+        return activeBlock?.endsAt
+    }
+    public var displayWeekResetAt: Date? {
+        if let r = synced?.reset7dAt, let s = synced, s.isFresh { return r }
+        return activeWeek?.endsAt
+    }
+    public var displayBucket: HealthBucket {
+        if synced?.isFresh == true { return .from(percent: displayPercent5h) }
+        return bucket
     }
 }
 
@@ -77,6 +110,7 @@ public final class UsageMonitor {
     /// reset moment; we render the weekly window as `[anchor - 7d, anchor)`
     /// instead of using auto-detection.
     private var weeklyResetOverride: Date?
+    private var latestSynced: SyncedUsage?
     private let onUpdate: Callback
     private var initialLoadComplete = false
 
@@ -151,6 +185,14 @@ public final class UsageMonitor {
         }
     }
 
+    public func updateSynced(_ synced: SyncedUsage?) {
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            self.latestSynced = synced
+            self.emitSnapshot()
+        }
+    }
+
     public func refreshNow() {
         workQueue.async { [weak self] in
             guard let self else { return }
@@ -166,6 +208,7 @@ public final class UsageMonitor {
             from: entries,
             plan: plan,
             weeklyResetOverride: weeklyResetOverride,
+            synced: latestSynced,
             now: Date()
         )
         DispatchQueue.main.async { [onUpdate] in
@@ -177,6 +220,7 @@ public final class UsageMonitor {
         from entries: [UsageEntry],
         plan: PlanTier,
         weeklyResetOverride: Date? = nil,
+        synced: SyncedUsage? = nil,
         now: Date = Date()
     ) -> UsageSnapshot {
         let activeBlock = BlockDetector.activeBlock(from: entries, now: now)
@@ -215,7 +259,8 @@ public final class UsageMonitor {
             asOf: now,
             entryCount: entries.count,
             activeBlock: activeBlock,
-            activeWeek: activeWeek
+            activeWeek: activeWeek,
+            synced: synced
         )
     }
 }
