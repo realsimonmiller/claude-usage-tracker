@@ -51,12 +51,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // from Chrome (one-time Keychain prompt). Falls back silently if Chrome
         // isn't installed, the user is logged out, or the cookie is expired —
         // we keep showing our calculated approximation in that case.
-        sync = ClaudeUsageSync(pollInterval: 300) { [weak self] result in
+        sync = ClaudeUsageSync(pollInterval: 60) { [weak self] result in
             switch result {
             case .success(let s):
                 self?.lastSyncError = nil
                 self?.monitor.updateSynced(s)
-                NSLog("[CCT] synced from claude.ai: 5h=%d%% 7d=%d%%", s.percent5h, s.percent7d)
+                // Quiet on success — at 60s polls this would be 1,440 log lines/day.
+                // The popover shows "live (Ns ago)" for visual confirmation.
             case .failure(let e):
                 self?.lastSyncError = "\(e)"
                 NSLog("[CCT] sync failed: %@", "\(e)")
@@ -108,7 +109,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func makePopoverView() -> PopoverView {
         PopoverView(
             snapshot: snapshot,
-            weeklyOverrideActive: weeklyResetOverride != nil,
             onRefresh: { [weak self] in self?.monitor.refreshNow() },
             onQuit: { NSApp.terminate(nil) }
         )

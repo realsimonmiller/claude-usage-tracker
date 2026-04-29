@@ -99,13 +99,16 @@ public enum ChromeCookieReader {
     // MARK: - Internals
 
     private static func keychainDerivedKey() throws -> Data {
-        let password = run(["/usr/bin/security",
-                            "find-generic-password",
-                            "-w",
-                            "-s", "Chrome Safe Storage",
-                            "-a", "Chrome"])
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        if password.isEmpty {
+        let result = runWithStatus(["/usr/bin/security",
+                                    "find-generic-password",
+                                    "-w",
+                                    "-s", "Chrome Safe Storage",
+                                    "-a", "Chrome"])
+        // `security` exits 0 on success, 51 on user denial, 44 if the item is missing.
+        // Checking the exit code (not just empty stdout) means a real failure isn't
+        // misdiagnosed as "no Chrome installed" further up the stack.
+        let password = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard result.exitCode == 0, !password.isEmpty else {
             throw CookieError.keychainAccessDenied
         }
         return pbkdf2(password: password)
@@ -177,6 +180,10 @@ public enum ChromeCookieReader {
     }
 
     private static func run(_ args: [String]) -> String {
+        runWithStatus(args).stdout
+    }
+
+    private static func runWithStatus(_ args: [String]) -> (stdout: String, exitCode: Int32) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: args[0])
         process.arguments = Array(args.dropFirst())
@@ -188,10 +195,10 @@ public enum ChromeCookieReader {
             try process.run()
             process.waitUntilExit()
         } catch {
-            return ""
+            return ("", -1)
         }
         let data = outPipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8) ?? ""
+        return (String(data: data, encoding: .utf8) ?? "", process.terminationStatus)
     }
 
     private static func hexToData(_ hex: String) -> Data? {

@@ -32,7 +32,7 @@ public final class ClaudeUsageSync {
     /// Latest successful sync. Nil until the first one lands.
     public private(set) var latest: SyncedUsage?
 
-    public init(pollInterval: TimeInterval = 300, onSync: @escaping Callback) {
+    public init(pollInterval: TimeInterval = 60, onSync: @escaping Callback) {
         self.pollInterval = pollInterval
         self.onSync = onSync
     }
@@ -104,8 +104,9 @@ public final class ClaudeUsageSync {
 
         if let err = responseError { throw err }
         guard (200..<300).contains(statusCode) else {
-            let body = responseData.flatMap { String(data: $0, encoding: .utf8) }
-            throw SyncError.httpStatus(statusCode, body?.prefix(200).description)
+            // Don't include the response body — it can echo session cookies / org IDs
+            // from Cloudflare or Anthropic error pages, and errors get NSLogged.
+            throw SyncError.httpStatus(statusCode, nil)
         }
         guard let data = responseData else {
             throw SyncError.malformedResponse("empty body")
@@ -127,8 +128,8 @@ public final class ClaudeUsageSync {
         do {
             env = try JSONDecoder().decode(Envelope.self, from: data)
         } catch {
-            let preview = String(data: data, encoding: .utf8)?.prefix(200) ?? ""
-            throw SyncError.malformedResponse("decode: \(error) — body: \(preview)")
+            // Body intentionally omitted — see note in fetch() above.
+            throw SyncError.malformedResponse("decode: \(error)")
         }
 
         let f = ISO8601DateFormatter()

@@ -3,7 +3,6 @@ import ClaudeUsageTrackerCore
 
 struct PopoverView: View {
     let snapshot: UsageSnapshot
-    let weeklyOverrideActive: Bool
     let onRefresh: () -> Void
     let onQuit: () -> Void
 
@@ -40,7 +39,7 @@ struct PopoverView: View {
             Image(nsImage: MascotRenderer.image(percentUsed: snapshot.displayDrivingPercent, pointHeight: 40))
                 .interpolation(.none)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Claude Code Usage")
+                Text("Claude Usage")
                     .font(.system(size: 14, weight: .semibold))
                 HStack(spacing: 6) {
                     Text(snapshot.plan.displayName)
@@ -64,9 +63,6 @@ struct PopoverView: View {
             sectionLabel("5-HOUR BLOCK")
             ProgressBar(percent: snapshot.displayPercent5h)
             HStack(spacing: 8) {
-                Text(formatNCU(snapshot.totals5h.ncu) + " / " + formatNCU(snapshot.plan.cap5h) + " NCU")
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(blockResetText)
                     .font(.system(size: 11))
@@ -77,23 +73,9 @@ struct PopoverView: View {
 
     private var weeklySection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                sectionLabel("WEEKLY WINDOW")
-                Text(weeklyTagText)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.secondary.opacity(0.3), lineWidth: 0.5)
-                    )
-            }
+            sectionLabel("WEEKLY WINDOW")
             ProgressBar(percent: snapshot.displayPercent7d)
             HStack(spacing: 8) {
-                Text(formatNCU(snapshot.totals7d.ncu) + " / " + formatNCU(snapshot.plan.cap7d) + " NCU")
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(weeklyResetText)
                     .font(.system(size: 11))
@@ -102,25 +84,20 @@ struct PopoverView: View {
         }
     }
 
-    private var weeklyTagText: String {
-        if let s = snapshot.synced, s.isFresh { return "live" }
-        return weeklyOverrideActive ? "calibrated" : "auto"
-    }
-
     private var modelSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionLabel("CURRENT BLOCK BY MODEL")
-            ForEach(modelBreakdown, id: \.0) { (label, ncu, share) in
-                BreakdownRow(label: label, value: formatNCU(ncu) + " NCU", share: share)
+            sectionLabel("CLAUDE CODE — BY MODEL")
+            ForEach(modelBreakdown, id: \.0) { (label, _, share) in
+                BreakdownRow(label: label, value: formatShare(share), share: share)
             }
         }
     }
 
     private var projectsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionLabel("TOP PROJECTS, CURRENT BLOCK")
-            ForEach(projectBreakdown, id: \.0) { (label, ncu, share) in
-                BreakdownRow(label: label, value: formatNCU(ncu) + " NCU", share: share)
+            sectionLabel("CLAUDE CODE — TOP PROJECTS")
+            ForEach(projectBreakdown, id: \.0) { (label, _, share) in
+                BreakdownRow(label: label, value: formatShare(share), share: share)
             }
         }
     }
@@ -147,13 +124,13 @@ struct PopoverView: View {
     private var blockResetText: String {
         guard let resetAt = snapshot.displayBlockResetAt else { return "no active block" }
         let remaining = max(0, resetAt.timeIntervalSince(tickNow))
-        return "resets in " + formatRemaining(remaining)
+        return "resets in \(formatRemaining(remaining)) · \(formatAbsoluteReset(resetAt, now: tickNow))"
     }
 
     private var weeklyResetText: String {
         guard let resetAt = snapshot.displayWeekResetAt else { return "no active week" }
         let remaining = max(0, resetAt.timeIntervalSince(tickNow))
-        return "resets in " + formatRemaining(remaining)
+        return "resets in \(formatRemaining(remaining)) · \(formatAbsoluteReset(resetAt, now: tickNow))"
     }
 
     private var modelBreakdown: [(String, Double, Double)] {
@@ -261,6 +238,31 @@ private struct BreakdownRow: View {
 
 private func formatNCU(_ ncu: Double) -> String {
     String(format: "%.1f", ncu)
+}
+
+private func formatShare(_ share: Double) -> String {
+    "\(Int((share * 100).rounded()))%"
+}
+
+private let timeOnlyFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "h:mm a"
+    return f
+}()
+
+private let dayTimeFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "EEE h:mm a"
+    return f
+}()
+
+/// Absolute reset time: time-only when reset is today, day+time otherwise.
+private func formatAbsoluteReset(_ date: Date, now: Date) -> String {
+    let cal = Calendar.current
+    if cal.isDate(date, inSameDayAs: now) {
+        return timeOnlyFormatter.string(from: date)
+    }
+    return dayTimeFormatter.string(from: date)
 }
 
 private func formatRemaining(_ secs: TimeInterval) -> String {
