@@ -62,9 +62,6 @@ public enum JSONLParser {
         )
     }
 
-    /// Parse all lines in a file. Reads the whole file into memory; transcripts
-    /// are typically a few MB, so this is fine. For incremental tailing we'll
-    /// add an offset-tracking variant in M3.
     public static func parseFile(at url: URL) -> [UsageEntry] {
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return [] }
         var entries: [UsageEntry] = []

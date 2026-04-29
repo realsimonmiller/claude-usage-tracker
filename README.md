@@ -2,6 +2,8 @@
 
 macOS menu bar widget that shows your Claude usage in real time, mirrored from `claude.ai/settings/usage`. The icon is a Claude-mascot "battery" that drains as you burn through your 5-hour block.
 
+> **Disclaimer:** Not affiliated with, endorsed by, or sponsored by Anthropic. Claude is a trademark of Anthropic PBC. This app calls an undocumented internal endpoint that Anthropic could change or block at any time.
+
 ## What it shows
 
 - **5-hour block** — same percentage you'd see on `claude.ai/settings/usage`, polled live every 60s.

@@ -74,7 +74,9 @@ public final class ClaudeUsageSync {
             throw SyncError.missingOrgID
         }
 
-        let url = URL(string: "https://claude.ai/api/organizations/\(orgID)/usage")!
+        guard let url = URL(string: "https://claude.ai/api/organizations/\(orgID)/usage") else {
+            throw SyncError.malformedResponse("could not construct URL for org \(orgID.prefix(8))…")
+        }
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         req.setValue("application/json", forHTTPHeaderField: "Accept")

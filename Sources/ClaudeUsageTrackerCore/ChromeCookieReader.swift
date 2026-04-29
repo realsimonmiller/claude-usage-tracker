@@ -43,7 +43,7 @@ public enum ChromeCookieReader {
     /// Read every cookie for the given host (and its `.host` parent), decrypt,
     /// return as `name -> value`. Pulls all cookies so we can replay full
     /// browser auth state (sessionKey, cf_clearance, lastActiveOrg, etc.).
-    public static func readAllCookies(forDomain domain: String) throws -> [String: String] {
+    static func readAllCookies(forDomain domain: String) throws -> [String: String] {
         guard FileManager.default.fileExists(atPath: cookiesPath) else {
             throw CookieError.chromeNotInstalled
         }
@@ -51,7 +51,7 @@ public enum ChromeCookieReader {
         let key = try keychainDerivedKey()
 
         // Copy DB to temp so we don't fight Chrome's lock.
-        let tmp = "/tmp/cct_cookies_\(UUID().uuidString.prefix(8)).sqlite"
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("cct_cookies_\(UUID().uuidString).sqlite").path
         try? FileManager.default.removeItem(atPath: tmp)
         do {
             try FileManager.default.copyItem(atPath: cookiesPath, toPath: tmp)

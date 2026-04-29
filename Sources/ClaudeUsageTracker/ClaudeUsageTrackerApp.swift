@@ -201,18 +201,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         refresh.target = self
         menu.addItem(refresh)
 
-        menu.addItem(.separator())
-
-        menu.addItem(disabledItem("Debug — force bucket"))
-        for (i, bucket) in HealthBucket.allCases.enumerated() {
-            let item = NSMenuItem(
-                title: "  \(bucket.placeholderFace)  \(bucket.displayName)",
-                action: #selector(forceBucket(_:)),
-                keyEquivalent: i < 9 ? "\(i + 1)" : ""
-            )
-            item.target = self
-            item.tag = bucket.rawValue
-            menu.addItem(item)
+        if UserDefaults.standard.bool(forKey: "cct.debugMenu") {
+            menu.addItem(.separator())
+            menu.addItem(disabledItem("Debug — force bucket"))
+            for (i, bucket) in HealthBucket.allCases.enumerated() {
+                let item = NSMenuItem(
+                    title: "  \(bucket.placeholderFace)  \(bucket.displayName)",
+                    action: #selector(forceBucket(_:)),
+                    keyEquivalent: i < 9 ? "\(i + 1)" : ""
+                )
+                item.target = self
+                item.tag = bucket.rawValue
+                menu.addItem(item)
+            }
         }
 
         menu.addItem(.separator())
