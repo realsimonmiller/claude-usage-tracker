@@ -1,31 +1,30 @@
 # Design Doc — claude-usage-tracker
 
-**Status:** Draft v0.2
+**Status:** Draft v0.3
 **Author:** Erik Lissinger
-**Last updated:** 2026-04-22
+**Last updated:** 2026-04-29
 
 ---
 
 ## 1. Summary
 
-A macOS menu bar widget that shows real-time Claude Code plan usage against your rolling 5-hour and 7-day caps. The icon is a Doom HUD face that gets visibly bloodier as your remaining quota shrinks — health = budget. Everything runs locally by parsing Claude Code's transcript files.
+A macOS menu bar widget that shows real-time Claude usage synced live from `claude.ai/settings/usage`. The icon is a Claude-mascot "battery" that drains as you burn through your 5-hour block. Usage percentages come directly from claude.ai's internal API (polled every 60s via Chrome cookie replay), so the widget always agrees with the website. Local Claude Code transcripts are also parsed for per-model and per-project breakdowns within the current block.
 
 ## 2. Goals
 
 - **Glanceable cap proximity.** A user should know in <1 second whether they're safe, warm, or about to hit the wall.
-- **Charming, not nagging.** The Doom face turns a frustrating limit into something fun. No popups, no badges, no notifications by default.
-- **Local-only.** No network, no auth, no scraping. Privacy is a feature, not a marketing line.
+- **Exact match with claude.ai.** Percentages are pulled from the same endpoint the settings page uses — no approximation, no drift.
 - **Lightweight.** Idles at <1% CPU and <50MB RAM. Doesn't slow down login or hog the menu bar.
-- **Accurate enough.** Within ~5% of `ccusage` for the same window — not a billing system, just a HUD.
+- **Graceful degradation.** If sync fails (logged out, Chrome missing, endpoint changes), falls back to local NCU approximation and keeps going.
 
 ## 3. Non-goals (v1)
 
-- Animated faces, idle blinking, "ouch" reactions, sound effects → v2.
-- Web `claude.ai` chat usage → no public API, would require fragile session scraping.
+- Animated mascot (idle blinking, reactions) → v2.
 - Anthropic API console / Admin API spend tracking → different audience (API users, not Plan subscribers).
-- Push notifications when crossing thresholds → easy to add later, not core to the HUD metaphor.
+- Push notifications when crossing thresholds → easy to add later.
 - Multi-machine usage aggregation → assumes one Mac per user.
 - Historical charts beyond the active windows → v2.
+- Safari / Firefox cookie support → Chrome/Brave/Edge only (same AES-128-CBC scheme).
 
 ## 4. Background
 

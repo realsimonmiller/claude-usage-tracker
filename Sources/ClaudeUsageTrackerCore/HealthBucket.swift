@@ -23,8 +23,8 @@ public enum HealthBucket: Int, CaseIterable, Sendable {
         }
     }
 
-    /// SF Symbol fallback used while we don't have real Doom face sprites.
-    /// These render reliably in the menu bar at 22pt regardless of emoji font issues.
+    /// SF Symbol names used in the debug force-bucket menu (emoji + label).
+    /// Not shown in the normal UI — the mascot battery icon handles that.
     public var sfSymbolName: String {
         switch self {
         case .healthy:  return "face.smiling"
