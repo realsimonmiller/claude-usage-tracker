@@ -42,9 +42,6 @@ struct PopoverView: View {
                 Text("Claude Usage")
                     .font(.system(size: 14, weight: .semibold))
                 HStack(spacing: 6) {
-                    Text(snapshot.plan.displayName)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
                     if let s = snapshot.synced, s.isFresh {
                         let age = Int(s.ageSeconds)
                         let ageStr = age < 60 ? "\(age)s" : "\(age / 60)m"

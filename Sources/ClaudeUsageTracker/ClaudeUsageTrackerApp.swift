@@ -2,14 +2,11 @@ import AppKit
 import SwiftUI
 import ClaudeUsageTrackerCore
 
-private let planDefaultsKey = "cct.planTier"
-
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private var monitor: UsageMonitor!
     private var sync: ClaudeUsageSync!
     private var snapshot: UsageSnapshot = .empty
-    private var plan: PlanTier = .pro
     private var lastSyncError: String?
 
     private var popover: NSPopover!
@@ -18,8 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-
-        plan = loadPlan()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
@@ -33,10 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         hostingController = NSHostingController(rootView: makePopoverView())
         popover.contentViewController = hostingController
 
-        monitor = UsageMonitor(
-            plan: plan,
-            tickInterval: 30
-        ) { [weak self] snap in
+        monitor = UsageMonitor(tickInterval: 30) { [weak self] snap in
             self?.snapshot = snap
             self?.render(snapshot: snap)
             self?.refreshPopoverContentIfNeeded()
@@ -61,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         sync.start()
 
-        NSLog("[CCT] launched. plan=\(plan.displayName)")
+        NSLog("[CCT] launched")
     }
 
     // MARK: - Status item
@@ -201,27 +193,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc private func forceBucket(_ sender: NSMenuItem) {
         guard let bucket = HealthBucket(rawValue: sender.tag) else { return }
         let fakeSnap = UsageSnapshot(
-            plan: plan,
-            totals5h: .zero,
-            totals7d: .zero,
-            percent5h: bucket.demoPercent,
-            percent7d: bucket.demoPercent,
-            drivingPercent: bucket.demoPercent,
-            bucket: bucket,
             asOf: Date(),
             entryCount: snapshot.entryCount,
             activeBlock: nil,
-            activeWeek: nil
+            activeWeek: nil,
+            synced: SyncedUsage(
+                percent5h: bucket.demoPercent,
+                percent7d: bucket.demoPercent,
+                reset5hAt: nil,
+                reset7dAt: nil,
+                percent7dSonnet: nil,
+                syncedAt: Date()
+            )
         )
         snapshot = fakeSnap
         render(snapshot: fakeSnap)
-    }
-
-    // MARK: - Persistence
-
-    private func loadPlan() -> PlanTier {
-        let raw = UserDefaults.standard.string(forKey: planDefaultsKey) ?? PlanTier.pro.rawValue
-        return PlanTier(rawValue: raw) ?? .pro
     }
 }
 
