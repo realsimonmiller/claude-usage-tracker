@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from claude_usage_tracker.render import RenderError, TranscriptBreakdowns, render_waybar
+from claude_usage_tracker.render import ICON, RenderError, TranscriptBreakdowns, render_waybar
 from claude_usage_tracker.sync import SyncAuthority, SyncedUsage
 
 
@@ -43,7 +43,7 @@ def test_render_errors(error, tooltip, expected_class):
 
     assert "class" in output
     assert isinstance(output["class"], str)
-    assert output["text"] == "—"
+    assert output["text"] == f"{ICON} —"
     assert output["tooltip"] == tooltip
     assert output["class"] == expected_class
     assert "percentage" not in output
@@ -66,8 +66,8 @@ def test_fresh_sync_tier_boundaries(percent5h, expected_tier):
     assert "class" in output
     assert isinstance(output["class"], str)
     assert output["class"] == f"fresh {expected_tier}"
-    assert output["text"] == f"{percent5h}%"
-    assert output["tooltip"] == "5h usage: %s%%\rWeekly usage: 61%%" % percent5h
+    assert output["text"] == f"{ICON} {percent5h}%"
+    assert output["tooltip"] == f"5-HOUR BLOCK\r{percent5h}%\r\rWEEKLY WINDOW\r61%"
     assert "\r" in output["tooltip"]
     assert "\n" not in output["tooltip"]
     assert output["percentage"] == percent5h
@@ -81,12 +81,13 @@ def test_fresh_sync_with_breakdowns_emits_all_fields():
 
     assert "class" in output
     assert isinstance(output["class"], str)
-    assert output["text"] == "42%"
+    assert output["text"] == f"{ICON} 42%"
     assert output["class"] == "fresh usage-low"
     assert output["percentage"] == 42
     assert output["tooltip"] == (
-        "5h usage: 42%\rWeekly usage: 61%\rTop model: Sonnet 58%\r"
-        "Top project: cli-redesign 31%"
+        "5-HOUR BLOCK\r42%\r\rWEEKLY WINDOW\r61%\r\r"
+        "CLAUDE CODE — BY MODEL\rSonnet 58%\r\r"
+        "CLAUDE CODE — TOP PROJECT\rcli-redesign 31%"
     )
     assert "\r" in output["tooltip"]
     assert "\n" not in output["tooltip"]
@@ -97,12 +98,11 @@ def test_fresh_sync_without_breakdowns_omits_breakdown_lines():
 
     assert "class" in output
     assert isinstance(output["class"], str)
-    assert output["text"] == "42%"
+    assert output["text"] == f"{ICON} 42%"
     assert output["class"] == "fresh usage-low"
     assert output["percentage"] == 42
-    assert output["tooltip"] == "5h usage: 42%\rWeekly usage: 61%"
-    assert "Top model:" not in output["tooltip"]
-    assert "Top project:" not in output["tooltip"]
+    assert output["tooltip"] == "5-HOUR BLOCK\r42%\r\rWEEKLY WINDOW\r61%"
+    assert "CLAUDE CODE" not in output["tooltip"]
     assert "\r" in output["tooltip"]
     assert "\n" not in output["tooltip"]
 
@@ -112,7 +112,7 @@ def test_stale_sync_uses_stale_class_and_no_percentage():
 
     assert "class" in output
     assert isinstance(output["class"], str)
-    assert output["text"] == "—"
+    assert output["text"] == f"{ICON} —"
     assert output["class"] == "stale usage-none"
     assert output["tooltip"] == "Stale data"
     assert "percentage" not in output
@@ -123,7 +123,7 @@ def test_other_error_uses_error_class():
 
     assert "class" in output
     assert isinstance(output["class"], str)
-    assert output["text"] == "—"
+    assert output["text"] == f"{ICON} —"
     assert output["class"] == "error usage-none"
     assert "error" in output["class"]
     assert output["tooltip"] == "No organization cookie found"

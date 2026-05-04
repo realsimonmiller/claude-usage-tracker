@@ -89,9 +89,10 @@ def _handle_render_waybar(fixture_suite: str | None, config: str | None) -> int:
         return 1
     except Exception as exc:
         import traceback
+        from claude_usage_tracker.render import ICON
         sys.stderr.write(traceback.format_exc())
         error_payload = {
-            "text": "—",
+            "text": f"{ICON} —",
             "tooltip": f"Internal error: {type(exc).__name__}",
             "class": "error",
         }

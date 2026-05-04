@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 
 from claude_usage_tracker.sync import SyncAuthority, SyncedUsage
+
+ICON = "󰚩"
 
 
 class RenderError(str, Enum):
@@ -71,8 +74,8 @@ def _usage_class(*, sync: SyncedUsage | None) -> str:
 
 def _text(*, sync: SyncedUsage | None, error: RenderError | None) -> str:
     if sync is not None and sync.authority is SyncAuthority.FRESH and error is None:
-        return f"{sync.percent5h}%"
-    return "—"
+        return f"{ICON} {sync.percent5h}%"
+    return f"{ICON} —"
 
 
 def _tooltip(
@@ -82,12 +85,36 @@ def _tooltip(
     error: RenderError | None,
 ) -> str:
     if sync is not None and sync.authority is SyncAuthority.FRESH and error is None:
-        lines = [f"5h usage: {sync.percent5h}%", f"Weekly usage: {sync.percent7d}%"]
-        if breakdowns is not None:
-            if breakdowns.top_model:
-                lines.append(f"Top model: {breakdowns.top_model}")
-            if breakdowns.top_project:
-                lines.append(f"Top project: {breakdowns.top_project}")
+        now = datetime.now(UTC)
+        lines: list[str] = []
+
+        lines.append("5-HOUR BLOCK")
+        block_line = f"{sync.percent5h}%"
+        if sync.reset5h_at is not None:
+            countdown = _countdown(sync.reset5h_at, now)
+            reset_time = sync.reset5h_at.astimezone().strftime("%-I:%M %p")
+            block_line += f"  ·  resets in {countdown} · {reset_time}"
+        lines.append(block_line)
+        lines.append("")
+
+        lines.append("WEEKLY WINDOW")
+        week_line = f"{sync.percent7d}%"
+        if sync.reset7d_at is not None:
+            countdown = _countdown(sync.reset7d_at, now)
+            reset_time = sync.reset7d_at.astimezone().strftime("%a %-I:%M %p")
+            week_line += f"  ·  resets in {countdown} · {reset_time}"
+        lines.append(week_line)
+
+        if breakdowns is not None and breakdowns.top_model:
+            lines.append("")
+            lines.append("CLAUDE CODE — BY MODEL")
+            lines.append(breakdowns.top_model)
+
+        if breakdowns is not None and breakdowns.top_project:
+            lines.append("")
+            lines.append("CLAUDE CODE — TOP PROJECT")
+            lines.append(breakdowns.top_project)
+
         return "\r".join(lines)
 
     if error is RenderError.MISSING_SESSION:
@@ -111,3 +138,16 @@ def _tooltip(
     if sync is not None and sync.authority is SyncAuthority.STALE:
         return "Stale data"
     return "HTTP error"
+
+
+def _countdown(reset_at: datetime, now: datetime) -> str:
+    if reset_at <= now:
+        return "soon"
+    total_minutes = int((reset_at - now).total_seconds() // 60)
+    hours, minutes = divmod(total_minutes, 60)
+    days, hours = divmod(hours, 24)
+    if days:
+        return f"{days}d {hours}h"
+    if hours:
+        return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+    return f"{minutes}m"

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from claude_usage_tracker.cli import main
 from claude_usage_tracker.live_session import RenderInputs
-from claude_usage_tracker.render import RenderError, TranscriptBreakdowns
+from claude_usage_tracker.render import ICON, RenderError, TranscriptBreakdowns
 from claude_usage_tracker.sync import SyncAuthority, SyncedUsage
 
 _PATCH_TARGET = "claude_usage_tracker.live_session.assemble_render_inputs"
@@ -54,7 +54,7 @@ def test_live_mode_error_path_emits_error_class(capsys):
     payload = json.loads(captured.out)
     assert "class" in payload
     assert "missing-session" in payload["class"]
-    assert payload["text"] == "—"
+    assert payload["text"] == f"{ICON} —"
 
 
 def test_live_mode_internal_exception_still_emits_valid_json_and_exit_0(capsys):
@@ -65,7 +65,7 @@ def test_live_mode_internal_exception_still_emits_valid_json_and_exit_0(capsys):
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert "class" in payload
-    assert payload["text"] == "—"
+    assert payload["text"] == f"{ICON} —"
     assert "RuntimeError" in captured.err
 
 
