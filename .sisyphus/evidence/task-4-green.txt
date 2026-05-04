@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0 -- /home/worm/proj/git/claude-usage-tracker/.venv/bin/python3
+cachedir: .pytest_cache
+PySide6 6.11.0 -- Qt runtime 6.11.0 -- Qt compiled 6.11.0
+rootdir: /home/worm/proj/git/claude-usage-tracker
+configfile: pyproject.toml
+plugins: qt-4.5.0, anyio-4.13.0
+collecting ... collected 7 items
+
+tests/test_system.py::test_default_browser_root_returns_home_config PASSED [ 14%]
+tests/test_system.py::test_default_transcript_root_returns_home_claude_projects PASSED [ 28%]
+tests/test_system.py::test_secret_service_status_when_secretstorage_not_installed PASSED [ 42%]
+tests/test_system.py::test_secret_service_status_when_dbus_fails PASSED  [ 57%]
+tests/test_system.py::test_secret_service_status_when_service_unavailable PASSED [ 71%]
+tests/test_system.py::test_secret_service_status_happy_path_label_found PASSED [ 85%]
+tests/test_system.py::test_secret_service_status_happy_path_no_items PASSED [100%]
+
+============================== 7 passed in 0.02s ===============================

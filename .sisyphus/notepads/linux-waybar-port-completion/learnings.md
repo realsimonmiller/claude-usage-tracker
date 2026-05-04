@@ -59,3 +59,20 @@
 - Notification dedupe must key off reset-window ISO timestamps, not raw fixture strings; normalize fixture `Z` timestamps to `+00:00` in tests.
 - `decide_notifications()` should stay pure and return the updated `State` only when notifications actually fire.
 - `notify-send` dispatch should stay list-form and fire-and-forget; stderr logging is enough for failures.
+
+### [2026-05-04] Live Session Orchestrator
+- `RenderInputs` frozen dataclass: `sync`, `breakdowns`, `error` fields — same pattern as other domain dataclasses
+- secretstorage exceptions caught by `type(exc).__name__` string matching — avoids import dependency while portable
+- `_compute_breakdowns` uses `sync.reset5h_at - 5h` as block start (reset marks END of block), falls back to `now - 5h`
+- Block filter: `entry.timestamp >= block_start` (entries exactly at block start are included)
+- Breakdown format: `f"{row.label} {int(row.share * 100)}%"` — truncates (not rounds) share percent
+- Test pattern: `monkeypatch.setattr(live_session, "resolve_profile", ...)` patches imported names in module namespace
+- Fake secretstorage exception classes: plain subclasses of `Exception` with correct class `__name__` trigger the type-name dispatch
+- Git identity needs env vars `GIT_AUTHOR_NAME/EMAIL` + `GIT_COMMITTER_NAME/EMAIL` when git config is absent
+- ruff I001 (isort): `--fix` auto-resolves; stdlib imports must precede third-party
+
+### [2026-05-04] System Path Resolvers
+- `default_browser_root()` should return `Path.home() / ".config"` and stay pathlib-only.
+- `default_transcript_root()` should return `Path.home() / ".claude" / "projects"` for local transcript scans.
+- `secret_service_status()` is diagnostic-only: no decryption, just import/dbus/service/lookups with graceful failure snapshots.
+- Tests can mock `secretstorage` directly via `sys.modules`; file-level pyright suppression is useful for MagicMock-heavy test isolation.

@@ -1,0 +1,3 @@
+result: /home/worm/.config
+expected: /home/worm/.config
+PASS
