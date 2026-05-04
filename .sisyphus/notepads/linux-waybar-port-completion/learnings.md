@@ -111,3 +111,14 @@
 - Waybar config patching should create a `.bak` before edits and no-op when `custom/claude-usage` is already present.
 - Pytest coverage for install scripts is easiest when the shell script is exercised against temp files via `WAYBAR_CONFIG` / `WAYBAR_STYLE` overrides.
 - LSP hygiene: annotate pytest fixture params (`tmp_path: Path`) and avoid unused `write_text()` results to keep basedpyright clean.
+
+## README Documentation (Linux Port)
+- Documented the Linux port in the main README.md.
+- Maintained the terse, direct voice of the existing documentation.
+- Added a Linux-specific section with requirements, install steps, and troubleshooting.
+- Verified that macOS documentation remains intact.
+
+### [2026-05-04] Test Package Import Fix
+- `tests/test_fixture_integrity.py` imports `from tests.fixture_contracts import assert_fixture_suite`, so `tests/` must be a package.
+- An empty `tests/__init__.py` is enough to make pytest resolve that import without touching test logic.
+- Full suite passed after adding the package marker: `114 passed`.
