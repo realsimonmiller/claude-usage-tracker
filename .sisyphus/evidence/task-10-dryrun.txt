@@ -1,9 +1,0 @@
-[1;34m==> [0mInstalling claude-usage-tracker via uv tool
-DRY: uv tool install --from "/home/worm/proj/git/claude-usage-tracker" claude-usage-tracker --reinstall
-[1;34m==> [0mPatching /home/worm/.config/waybar/config.jsonc
-  already present, skipping
-[1;34m==> [0mPatching /home/worm/.config/waybar/style.css
-  already present, skipping
-[1;34m==> [0mReloading waybar
-DRY: pkill -SIGUSR2 waybar || true
-[1;34m==> [0mDone. Run: claude-usage-tracker doctor

@@ -1,1 +1,0 @@
-shellcheck not installed, skipping
