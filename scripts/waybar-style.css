@@ -1,0 +1,18 @@
+/* claude-usage-tracker */
+#custom-claude-usage {
+  min-width: 18px;
+  margin: 0 7.5px;
+  color: @foreground;
+}
+#custom-claude-usage.usage-low { color: @foreground; }
+#custom-claude-usage.usage-medium { color: @foreground; }
+#custom-claude-usage.usage-high { color: @accent; font-weight: bold; }
+#custom-claude-usage.usage-critical {
+  color: @background;
+  background-color: @accent;
+  padding: 0 6px;
+  border-radius: 8px;
+}
+#custom-claude-usage.stale { opacity: 0.5; }
+#custom-claude-usage.error { opacity: 0.5; color: @foreground; }
+#custom-claude-usage.missing-session { opacity: 0.5; color: @foreground; }
