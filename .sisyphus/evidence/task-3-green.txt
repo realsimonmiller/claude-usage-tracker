@@ -1,0 +1,22 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0 -- /home/worm/proj/git/claude-usage-tracker/.venv/bin/python3
+cachedir: .pytest_cache
+PySide6 6.11.0 -- Qt runtime 6.11.0 -- Qt compiled 6.11.0
+rootdir: /home/worm/proj/git/claude-usage-tracker
+configfile: pyproject.toml
+plugins: qt-4.5.0, anyio-4.13.0
+collecting ... collected 11 items
+
+tests/test_live_session.py::test_profile_resolution_error_maps_to_missing_session PASSED [  9%]
+tests/test_live_session.py::test_missing_session_cookie_maps_to_missing_session PASSED [ 18%]
+tests/test_live_session.py::test_missing_org_cookie_maps_to_missing_org PASSED [ 27%]
+tests/test_live_session.py::test_http_403_maps_to_http_forbidden PASSED  [ 36%]
+tests/test_live_session.py::test_http_500_maps_to_http_other PASSED      [ 45%]
+tests/test_live_session.py::test_keyring_locked_maps_correctly PASSED    [ 54%]
+tests/test_live_session.py::test_prompt_dismissed_maps_correctly PASSED  [ 63%]
+tests/test_live_session.py::test_prompt_dismissed_distinct_from_locked PASSED [ 72%]
+tests/test_live_session.py::test_happy_path_returns_sync_and_breakdowns PASSED [ 81%]
+tests/test_live_session.py::test_empty_transcripts_returns_none_breakdowns PASSED [ 90%]
+tests/test_live_session.py::test_item_not_found_maps_to_keyring_key_not_found PASSED [100%]
+
+============================== 11 passed in 0.06s ==============================

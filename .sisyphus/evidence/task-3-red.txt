@@ -1,0 +1,28 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0 -- /home/worm/proj/git/claude-usage-tracker/.venv/bin/python3
+cachedir: .pytest_cache
+PySide6 6.11.0 -- Qt runtime 6.11.0 -- Qt compiled 6.11.0
+rootdir: /home/worm/proj/git/claude-usage-tracker
+configfile: pyproject.toml
+plugins: qt-4.5.0, anyio-4.13.0
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting tests/test_live_session.py __________________
+ImportError while importing test module '/home/worm/proj/git/claude-usage-tracker/tests/test_live_session.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../.local/share/uv/python/cpython-3.13.12-linux-x86_64-gnu/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_live_session.py:11: in <module>
+    live_session = importlib.import_module("claude_usage_tracker.live_session")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.local/share/uv/python/cpython-3.13.12-linux-x86_64-gnu/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'claude_usage_tracker.live_session'
+=========================== short test summary info ============================
+ERROR tests/test_live_session.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.09s ===============================
