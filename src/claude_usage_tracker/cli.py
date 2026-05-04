@@ -221,6 +221,11 @@ def create_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--fixture-suite", required=False, default=None)
     doctor_parser.add_argument("--config", required=False, default=None)
 
+    subparsers.add_parser(
+        "settings-gui",
+        help="Open notification settings window",
+    )
+
     return parser
 
 
@@ -244,5 +249,8 @@ def main(argv=None) -> int:
             getattr(args, "fixture_suite", None),
             getattr(args, "config", None),
         )
+    if args.command == "settings-gui":
+        from claude_usage_tracker.settings_gui import run_settings_gui
+        return run_settings_gui()
 
     return 1
