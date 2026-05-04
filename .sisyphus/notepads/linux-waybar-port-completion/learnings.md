@@ -91,3 +91,10 @@
 - Live doctor output reports `secret_service_status()` plus `resolve_profile(default_browser_root(), config_path=None)` and transcript count from `~/.claude/projects`.
 - Fixture doctor path still reads `manifest.json` unchanged when `--fixture-suite` is provided.
 - Exit status stays `0` for `ok`/`warn` and `1` for `fail`.
+
+### [2026-05-04] Render-Waybar Notifications
+- Notification wiring belongs inside live `render-waybar` only, after `assemble_render_inputs()` and before `render_waybar()`.
+- Gate notifications on `inputs.sync is not None`, `SyncAuthority.FRESH`, and `config.notifications.enabled`.
+- `decide_notifications()` returns the updated dedupe `State`; persist only when the returned state is a new object.
+- Dispatch failures should be swallowed to stderr so the CLI still emits valid Waybar JSON.
+- New coverage added in `tests/test_cli_notifications.py` for first fire, dedupe, stale sync, disabled notifications, and dispatch failure.

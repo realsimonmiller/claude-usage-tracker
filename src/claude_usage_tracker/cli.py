@@ -35,6 +35,8 @@ def _handle_render_waybar(fixture_suite: str | None, config: str | None) -> int:
             sys.stdout.write(json.dumps(payload) + "\n")
             return 0
 
+        from datetime import UTC, datetime
+
         from claude_usage_tracker import config as config_module
         from claude_usage_tracker.live_session import assemble_render_inputs
         from claude_usage_tracker.render import render_waybar
@@ -51,6 +53,33 @@ def _handle_render_waybar(fixture_suite: str | None, config: str | None) -> int:
             transcript_root=default_transcript_root(),
             browser_root=default_browser_root(),
         )
+        from claude_usage_tracker.notifier import decide_notifications, dispatch
+        from claude_usage_tracker.state import load_state, save_state
+        from claude_usage_tracker.sync import SyncAuthority
+
+        if (
+            inputs.sync is not None
+            and inputs.sync.authority is SyncAuthority.FRESH
+            and app_config.notifications.enabled
+        ):
+            try:
+                current_state = load_state()
+                notifications, new_state = decide_notifications(
+                    sync=inputs.sync,
+                    config=app_config,
+                    state=current_state,
+                    now=datetime.now(UTC),
+                )
+                for notification in notifications:
+                    try:
+                        dispatch(notification)
+                    except Exception as exc:
+                        sys.stderr.write(f"notify: dispatch failed: {exc}\n")
+                if new_state is not current_state:
+                    save_state(new_state)
+            except Exception as exc:
+                sys.stderr.write(f"notify: {exc}\n")
+
         payload = render_waybar(sync=inputs.sync, breakdowns=inputs.breakdowns, error=inputs.error)
         sys.stdout.write(json.dumps(payload) + "\n")
         return 0
