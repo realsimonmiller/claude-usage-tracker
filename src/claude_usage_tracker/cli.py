@@ -25,12 +25,49 @@ def _require_existing_dir(path: str | Path, label: str) -> Path:
     return resolved
 
 
-def _handle_render_waybar(fixture_suite: str, config: str) -> int:
-    _require_existing_file(config, "config")
-    suite_path = _require_existing_dir(fixture_suite, "fixture suite")
-    payload = _read_json(suite_path / "expected.json")
-    sys.stdout.write(json.dumps(payload) + "\n")
-    return 0
+def _handle_render_waybar(fixture_suite: str | None, config: str | None) -> int:
+    try:
+        if fixture_suite is not None:
+            if config is not None:
+                _require_existing_file(config, "config")
+            suite_path = _require_existing_dir(fixture_suite, "fixture suite")
+            payload = _read_json(suite_path / "expected.json")
+            sys.stdout.write(json.dumps(payload) + "\n")
+            return 0
+
+        from claude_usage_tracker import config as config_module
+        from claude_usage_tracker.live_session import assemble_render_inputs
+        from claude_usage_tracker.render import render_waybar
+        from claude_usage_tracker.system import default_browser_root, default_transcript_root
+
+        if config is not None:
+            _require_existing_file(config, "config")
+            app_config = config_module.load_config(config)
+        else:
+            app_config = config_module.load_config()
+
+        inputs = assemble_render_inputs(
+            config=app_config,
+            transcript_root=default_transcript_root(),
+            browser_root=default_browser_root(),
+        )
+        payload = render_waybar(sync=inputs.sync, breakdowns=inputs.breakdowns, error=inputs.error)
+        sys.stdout.write(json.dumps(payload) + "\n")
+        return 0
+
+    except FileNotFoundError as exc:
+        sys.stderr.write(f"render-waybar: {exc}\n")
+        return 1
+    except Exception as exc:
+        import traceback
+        sys.stderr.write(traceback.format_exc())
+        error_payload = {
+            "text": "—",
+            "tooltip": f"Internal error: {type(exc).__name__}",
+            "class": "error",
+        }
+        sys.stdout.write(json.dumps(error_payload) + "\n")
+        return 0
 
 
 def _handle_doctor(fixture_suite: str, config: str) -> int:
@@ -65,7 +102,6 @@ def _handle_settings(config: str, headless_save: str | None) -> int:
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Create the main CLI argument parser."""
     parser = argparse.ArgumentParser(
         prog="claude-usage-tracker",
         description="Linux Waybar widget showing live Claude API usage",
@@ -77,8 +113,8 @@ def create_parser() -> argparse.ArgumentParser:
         "render-waybar",
         help="Render Waybar-compatible JSON payload (one-shot)",
     )
-    render_parser.add_argument("--fixture-suite", required=True)
-    render_parser.add_argument("--config", required=True)
+    render_parser.add_argument("--fixture-suite", required=False, default=None)
+    render_parser.add_argument("--config", required=False, default=None)
 
     settings_parser = subparsers.add_parser(
         "settings",
@@ -98,22 +134,21 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
-    """Main CLI entry point."""
     parser = create_parser()
     args = parser.parse_args(argv)
 
-    # If no command specified, show help
     if args.command is None:
         parser.print_help()
         return 0
 
-    # Dispatch to subcommand handlers
     if args.command == "render-waybar":
-        return _handle_render_waybar(args.fixture_suite, args.config)
+        return _handle_render_waybar(
+            getattr(args, "fixture_suite", None),
+            getattr(args, "config", None),
+        )
     if args.command == "settings":
         return _handle_settings(args.config, args.headless_save)
     if args.command == "doctor":
         return _handle_doctor(args.fixture_suite, args.config)
 
-    # Should not reach here (argparse handles invalid commands)
     return 1

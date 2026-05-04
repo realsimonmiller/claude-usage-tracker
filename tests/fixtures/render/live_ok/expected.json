@@ -1,6 +1,6 @@
 {
   "text": "42%",
-  "tooltip": "5h usage: 42%\nWeekly usage: 61%\nTop model: Sonnet 58%\nTop project: cli-redesign 31%",
-  "class": ["fresh", "usage-medium", "has-sync", "has-transcripts"],
+  "tooltip": "5h usage: 42%\rWeekly usage: 61%\rTop model: Sonnet 58%\rTop project: cli-redesign 31%",
+  "class": "fresh usage-medium",
   "percentage": 42
 }

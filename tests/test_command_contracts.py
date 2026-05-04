@@ -40,14 +40,16 @@ def test_render_waybar_live_suite_emits_waybar_json_contract():
     assert payload["text"] == "42%"
     assert isinstance(payload["percentage"], int)
     assert payload["percentage"] == 42
-    assert payload["class"] == ["fresh", "usage-medium", "has-sync", "has-transcripts"]
+    assert isinstance(payload["class"], str)
+    assert payload["class"] == "fresh usage-medium"
     assert isinstance(payload["tooltip"], str)
     assert payload["tooltip"] == (
-        "5h usage: 42%\n"
-        "Weekly usage: 61%\n"
-        "Top model: Sonnet 58%\n"
+        "5h usage: 42%\r"
+        "Weekly usage: 61%\r"
+        "Top model: Sonnet 58%\r"
         "Top project: cli-redesign 31%"
     )
+    assert "\n" not in payload["tooltip"]
     assert "<" not in payload["tooltip"]
 
 
@@ -65,14 +67,9 @@ def test_render_waybar_missing_session_suite_still_emits_non_empty_text():
 
     payload = json.loads(result.stdout)
     assert payload["text"] == "—"
-    assert payload["percentage"] == 0
-    assert payload["class"] == ["missing-session", "usage-none", "no-sync", "has-transcripts"]
-    assert payload["tooltip"] == (
-        "5h usage: unavailable\n"
-        "Weekly usage: unavailable\n"
-        "Live session: missing\n"
-        "Transcript fallback: available"
-    )
+    assert isinstance(payload["class"], str)
+    assert payload["class"] == "missing-session usage-none"
+    assert payload["tooltip"] == "No browser session found"
 
 
 def test_doctor_success_suite_reports_supported_browser_profile_and_backend():

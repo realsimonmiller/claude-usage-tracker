@@ -1,6 +1,5 @@
 {
   "text": "—",
-  "tooltip": "5h usage: unavailable\nWeekly usage: unavailable\nLive session: missing\nTranscript fallback: available",
-  "class": ["missing-session", "usage-none", "no-sync", "has-transcripts"],
-  "percentage": 0
+  "tooltip": "No browser session found",
+  "class": "missing-session usage-none"
 }

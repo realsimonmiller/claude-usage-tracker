@@ -76,3 +76,12 @@
 - `default_transcript_root()` should return `Path.home() / ".claude" / "projects"` for local transcript scans.
 - `secret_service_status()` is diagnostic-only: no decryption, just import/dbus/service/lookups with graceful failure snapshots.
 - Tests can mock `secretstorage` directly via `sys.modules`; file-level pyright suppression is useful for MagicMock-heavy test isolation.
+
+### [2026-05-04] Live Mode CLI Wiring
+- `_handle_render_waybar` is now live-mode-by-default: `fixture_suite=None` triggers real orchestration, `fixture_suite` provided triggers fixture passthrough
+- Mock target for `assemble_render_inputs` in tests must be `"claude_usage_tracker.live_session.assemble_render_inputs"` (where it's defined, not where it's imported)
+- Fixture files updated: `\r` for tooltip line breaks, string class (not array), simplified tooltips for error states
+- Internal exceptions in live mode: catch-all writes traceback to stderr, emits `{"text": "—", "tooltip": "Internal error: <ExcType>", "class": "error"}`, returns 0
+- `--fixture-suite` and `--config` are both `required=False, default=None` in argparse for render-waybar
+- `getattr(args, "fixture_suite", None)` pattern handles attribute presence safely
+- Live mode HTTP 403 = no active session in this environment; emits valid JSON with `"class": "error usage-none"`, exit 0 ✓

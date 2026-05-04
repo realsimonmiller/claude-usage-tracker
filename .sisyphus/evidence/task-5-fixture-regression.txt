@@ -1,0 +1,16 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0 -- /home/worm/proj/git/claude-usage-tracker/.venv/bin/python3
+cachedir: .pytest_cache
+PySide6 6.11.0 -- Qt runtime 6.11.0 -- Qt compiled 6.11.0
+rootdir: /home/worm/proj/git/claude-usage-tracker
+configfile: pyproject.toml
+plugins: qt-4.5.0, anyio-4.13.0
+collecting ... collected 5 items
+
+tests/test_command_contracts.py::test_render_waybar_live_suite_emits_waybar_json_contract PASSED [ 20%]
+tests/test_command_contracts.py::test_render_waybar_missing_session_suite_still_emits_non_empty_text PASSED [ 40%]
+tests/test_command_contracts.py::test_doctor_success_suite_reports_supported_browser_profile_and_backend PASSED [ 60%]
+tests/test_command_contracts.py::test_doctor_failure_suite_uses_stderr_for_clear_failure_reason PASSED [ 80%]
+tests/test_command_contracts.py::test_settings_headless_save_copies_canonical_config PASSED [100%]
+
+============================== 5 passed in 0.14s ===============================
