@@ -124,6 +124,13 @@ def fetch_live_usage(
     headers = {
         "Accept": "application/json",
         "Referer": "https://claude.ai/settings/usage",
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+        ),
+        "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Linux"',
         "Cookie": "; ".join(f"{name}={value}" for name, value in cookies.items()),
     }
     synced_at = parse_timestamp(now) if now is not None else datetime.now(UTC)

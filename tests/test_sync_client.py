@@ -120,6 +120,13 @@ def test_fetch_live_usage_replays_browser_cookies_and_parses_windows(
             "headers": {
                 "Accept": "application/json",
                 "Referer": "https://claude.ai/settings/usage",
+                "User-Agent": (
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+                ),
+                "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": '"Linux"',
                 "Cookie": (
                     "sessionKey=session-abc; lastActiveOrg=org-123; "
                     "cf_clearance=clearance-xyz"
