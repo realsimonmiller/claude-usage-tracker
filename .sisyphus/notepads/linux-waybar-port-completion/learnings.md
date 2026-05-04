@@ -54,3 +54,8 @@
 - Tooltip line breaks for Waybar must use `\r` only; tests should assert `\n` is absent.
 - Fresh syncs include `percentage`; stale/error states do not.
 - `RenderError.STALE_SYNC` tooltip is `Sync data is stale`, while stale live data (no error) uses `Stale data`.
+
+### [2026-05-04] Notifier
+- Notification dedupe must key off reset-window ISO timestamps, not raw fixture strings; normalize fixture `Z` timestamps to `+00:00` in tests.
+- `decide_notifications()` should stay pure and return the updated `State` only when notifications actually fire.
+- `notify-send` dispatch should stay list-form and fire-and-forget; stderr logging is enough for failures.
