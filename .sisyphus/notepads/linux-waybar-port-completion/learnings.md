@@ -104,3 +104,10 @@
 - The module definition should use signal 11, not a `format` field, and point click-through to `https://claude.ai/settings/usage`.
 - JSONC validation succeeds after stripping both `//` and `/* */` comments before `json.loads()`.
 - `pkill -SIGUSR2 waybar` reloads config cleanly; `pkill -SIGRTMIN+11 waybar` triggers the module refresh path.
+- Waybar styles can be reloaded with `pkill -SIGUSR2 waybar` without restarting the process.
+
+### [2026-05-04] Linux Install Helper
+- `install-linux.sh` should stay dry-run friendly by routing every mutating step through one helper.
+- Waybar config patching should create a `.bak` before edits and no-op when `custom/claude-usage` is already present.
+- Pytest coverage for install scripts is easiest when the shell script is exercised against temp files via `WAYBAR_CONFIG` / `WAYBAR_STYLE` overrides.
+- LSP hygiene: annotate pytest fixture params (`tmp_path: Path`) and avoid unused `write_text()` results to keep basedpyright clean.
