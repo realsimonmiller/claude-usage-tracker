@@ -89,31 +89,33 @@ def _tooltip(
         lines: list[str] = []
 
         lines.append("5-HOUR BLOCK")
-        block_line = f"{sync.percent5h}%"
+        lines.append(f"{_progress_bar(sync.percent5h)}  {sync.percent5h}%")
         if sync.reset5h_at is not None:
             countdown = _countdown(sync.reset5h_at, now)
             reset_time = sync.reset5h_at.astimezone().strftime("%-I:%M %p")
-            block_line += f"  ·  resets in {countdown} · {reset_time}"
-        lines.append(block_line)
+            lines.append(f"resets in {countdown} · {reset_time}")
         lines.append("")
 
         lines.append("WEEKLY WINDOW")
-        week_line = f"{sync.percent7d}%"
+        lines.append(f"{_progress_bar(sync.percent7d)}  {sync.percent7d}%")
         if sync.reset7d_at is not None:
             countdown = _countdown(sync.reset7d_at, now)
             reset_time = sync.reset7d_at.astimezone().strftime("%a %-I:%M %p")
-            week_line += f"  ·  resets in {countdown} · {reset_time}"
-        lines.append(week_line)
+            lines.append(f"resets in {countdown} · {reset_time}")
 
         if breakdowns is not None and breakdowns.top_model:
             lines.append("")
             lines.append("CLAUDE CODE — BY MODEL")
-            lines.append(breakdowns.top_model)
+            model_name, _, model_pct = breakdowns.top_model.rpartition(" ")
+            pct_int = int(model_pct.rstrip("%")) if model_pct.rstrip("%").isdigit() else 0
+            lines.append(f"{model_name:<10}  {_progress_bar(pct_int)}  {model_pct}")
 
         if breakdowns is not None and breakdowns.top_project:
             lines.append("")
             lines.append("CLAUDE CODE — TOP PROJECT")
-            lines.append(breakdowns.top_project)
+            proj_name, _, proj_pct = breakdowns.top_project.rpartition(" ")
+            pct_int = int(proj_pct.rstrip("%")) if proj_pct.rstrip("%").isdigit() else 0
+            lines.append(f"{proj_name:<10}  {_progress_bar(pct_int)}  {proj_pct}")
 
         return "\r".join(lines)
 
@@ -138,6 +140,12 @@ def _tooltip(
     if sync is not None and sync.authority is SyncAuthority.STALE:
         return "Stale data"
     return "HTTP error"
+
+
+def _progress_bar(percent: int, width: int = 20) -> str:
+    filled = round(percent / 100 * width)
+    filled = max(0, min(width, filled))
+    return "█" * filled + "░" * (width - filled)
 
 
 def _countdown(reset_at: datetime, now: datetime) -> str:

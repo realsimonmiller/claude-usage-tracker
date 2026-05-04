@@ -67,7 +67,11 @@ def test_fresh_sync_tier_boundaries(percent5h, expected_tier):
     assert isinstance(output["class"], str)
     assert output["class"] == f"fresh {expected_tier}"
     assert output["text"] == f"{ICON} {percent5h}%"
-    assert output["tooltip"] == f"5-HOUR BLOCK\r{percent5h}%\r\rWEEKLY WINDOW\r61%"
+    from claude_usage_tracker.render import _progress_bar
+    assert output["tooltip"] == (
+        f"5-HOUR BLOCK\r{_progress_bar(percent5h)}  {percent5h}%\r\r"
+        f"WEEKLY WINDOW\r{_progress_bar(61)}  61%"
+    )
     assert "\r" in output["tooltip"]
     assert "\n" not in output["tooltip"]
     assert output["percentage"] == percent5h
@@ -84,10 +88,12 @@ def test_fresh_sync_with_breakdowns_emits_all_fields():
     assert output["text"] == f"{ICON} 42%"
     assert output["class"] == "fresh usage-low"
     assert output["percentage"] == 42
+    from claude_usage_tracker.render import _progress_bar
     assert output["tooltip"] == (
-        "5-HOUR BLOCK\r42%\r\rWEEKLY WINDOW\r61%\r\r"
-        "CLAUDE CODE — BY MODEL\rSonnet 58%\r\r"
-        "CLAUDE CODE — TOP PROJECT\rcli-redesign 31%"
+        f"5-HOUR BLOCK\r{_progress_bar(42)}  42%\r\r"
+        f"WEEKLY WINDOW\r{_progress_bar(61)}  61%\r\r"
+        f"CLAUDE CODE — BY MODEL\rSonnet      {_progress_bar(58)}  58%\r\r"
+        f"CLAUDE CODE — TOP PROJECT\rcli-redesign  {_progress_bar(31)}  31%"
     )
     assert "\r" in output["tooltip"]
     assert "\n" not in output["tooltip"]
@@ -101,7 +107,11 @@ def test_fresh_sync_without_breakdowns_omits_breakdown_lines():
     assert output["text"] == f"{ICON} 42%"
     assert output["class"] == "fresh usage-low"
     assert output["percentage"] == 42
-    assert output["tooltip"] == "5-HOUR BLOCK\r42%\r\rWEEKLY WINDOW\r61%"
+    from claude_usage_tracker.render import _progress_bar
+    assert output["tooltip"] == (
+        f"5-HOUR BLOCK\r{_progress_bar(42)}  42%\r\r"
+        f"WEEKLY WINDOW\r{_progress_bar(61)}  61%"
+    )
     assert "CLAUDE CODE" not in output["tooltip"]
     assert "\r" in output["tooltip"]
     assert "\n" not in output["tooltip"]
