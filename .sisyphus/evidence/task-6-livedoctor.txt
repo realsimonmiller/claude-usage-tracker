@@ -1,0 +1,9 @@
+exit: 0
+status: ok
+browser: chrome
+profile: Default
+backend: secret-service
+secret_service_available: yes (ok)
+secret_service_label_lookup: fail (no items found)
+secret_service_application_lookup: ok (found 1 item(s))
+transcript_root: /home/worm/.claude/projects (3212 files)

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-def _read_json(path: str | Path) -> dict:
+def _read_json(path: str | Path) -> dict[str, object]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
@@ -70,22 +70,83 @@ def _handle_render_waybar(fixture_suite: str | None, config: str | None) -> int:
         return 0
 
 
-def _handle_doctor(fixture_suite: str, config: str) -> int:
-    _require_existing_file(config, "config")
-    suite_path = _require_existing_dir(fixture_suite, "fixture suite")
-    manifest = _read_json(suite_path / "manifest.json")
+def _handle_doctor(fixture_suite: str | None, config: str | None) -> int:
+    if fixture_suite is not None:
+        if config is not None:
+            _require_existing_file(config, "config")
+        suite_path = _require_existing_dir(fixture_suite, "fixture suite")
+        manifest = _read_json(suite_path / "manifest.json")
 
-    if manifest["status"] != "ok":
-        sys.stderr.write(f"doctor: {manifest['reason']}\n")
-        return 1
+        if manifest["status"] != "ok":
+            sys.stderr.write(f"doctor: {manifest['reason']}\n")
+            return 1
 
-    sys.stdout.write(
-        "status: ok\n"
-        f"browser: {manifest['browser']}\n"
-        f"profile: {manifest['profile']}\n"
-        f"backend: {manifest['backend']}\n"
+        sys.stdout.write(
+            "status: ok\n"
+            f"browser: {manifest['browser']}\n"
+            f"profile: {manifest['profile']}\n"
+            f"backend: {manifest['backend']}\n"
+        )
+        return 0
+
+    from claude_usage_tracker import config as config_module
+    from claude_usage_tracker.browser.profiles import ProfileResolutionError, resolve_profile
+    from claude_usage_tracker.system import (
+        default_browser_root,
+        default_transcript_root,
+        secret_service_status,
     )
-    return 0
+
+    if config is not None:
+        _require_existing_file(config, "config")
+        _app_config = config_module.load_config(config)
+    else:
+        _app_config = config_module.load_config()
+
+    browser_id = "none"
+    profile_name = "none"
+    profile_resolved = False
+    try:
+        profile = resolve_profile(default_browser_root(), config_path=None)
+        browser_id = profile.browser_id
+        profile_name = profile.profile_name
+        profile_resolved = True
+    except ProfileResolutionError:
+        pass
+
+    ss = secret_service_status()
+
+    transcript_root = default_transcript_root()
+    transcript_count = (
+        len(list(transcript_root.rglob("*.jsonl"))) if transcript_root.is_dir() else 0
+    )
+
+    if not profile_resolved or not ss.available:
+        status = "fail"
+    elif not ss.label_lookup_ok and not ss.application_lookup_ok:
+        status = "warn"
+    else:
+        status = "ok"
+
+    sys.stdout.write(f"status: {status}\n")
+    sys.stdout.write(f"browser: {browser_id}\n")
+    sys.stdout.write(f"profile: {profile_name}\n")
+    sys.stdout.write(f"backend: {'secret-service' if ss.available else 'none'}\n")
+    sys.stdout.write(
+        f"secret_service_available: {'yes' if ss.available else 'no'} "
+        f"({ss.available_reason})\n"
+    )
+    sys.stdout.write(
+        "secret_service_label_lookup: "
+        f"{'ok' if ss.label_lookup_ok else 'fail'} ({ss.label_lookup_detail})\n"
+    )
+    sys.stdout.write(
+        "secret_service_application_lookup: "
+        f"{'ok' if ss.application_lookup_ok else 'fail'} ({ss.application_lookup_detail})\n"
+    )
+    sys.stdout.write(f"transcript_root: {transcript_root} ({transcript_count} files)\n")
+
+    return 0 if status in ("ok", "warn") else 1
 
 
 def _handle_settings(config: str, headless_save: str | None) -> int:
@@ -127,8 +188,8 @@ def create_parser() -> argparse.ArgumentParser:
         "doctor",
         help="Validate environment and browser configuration",
     )
-    doctor_parser.add_argument("--fixture-suite", required=True)
-    doctor_parser.add_argument("--config", required=True)
+    doctor_parser.add_argument("--fixture-suite", required=False, default=None)
+    doctor_parser.add_argument("--config", required=False, default=None)
 
     return parser
 
@@ -149,6 +210,9 @@ def main(argv=None) -> int:
     if args.command == "settings":
         return _handle_settings(args.config, args.headless_save)
     if args.command == "doctor":
-        return _handle_doctor(args.fixture_suite, args.config)
+        return _handle_doctor(
+            getattr(args, "fixture_suite", None),
+            getattr(args, "config", None),
+        )
 
     return 1

@@ -85,3 +85,9 @@
 - `--fixture-suite` and `--config` are both `required=False, default=None` in argparse for render-waybar
 - `getattr(args, "fixture_suite", None)` pattern handles attribute presence safely
 - Live mode HTTP 403 = no active session in this environment; emits valid JSON with `"class": "error usage-none"`, exit 0 ✓
+
+### [2026-05-04] Doctor Live Mode
+- `doctor` now defaults to live diagnostics when `--fixture-suite` is omitted.
+- Live doctor output reports `secret_service_status()` plus `resolve_profile(default_browser_root(), config_path=None)` and transcript count from `~/.claude/projects`.
+- Fixture doctor path still reads `manifest.json` unchanged when `--fixture-suite` is provided.
+- Exit status stays `0` for `ok`/`warn` and `1` for `fail`.
