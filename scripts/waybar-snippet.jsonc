@@ -1,0 +1,15 @@
+// claude-usage-tracker Waybar module definition
+// Add "custom/claude-usage" to your modules-right array
+// Then merge this snippet into your config.jsonc
+{
+  "custom/claude-usage": {
+    "exec": "timeout 15 claude-usage-tracker render-waybar",
+    "return-type": "json",
+    "interval": 60,
+    "signal": 11,
+    "tooltip": true,
+    "on-click": "xdg-open https://claude.ai/settings/usage",
+    "on-click-right": "pkill -SIGRTMIN+11 waybar",
+    "exec-on-event": false
+  }
+}

@@ -98,3 +98,9 @@
 - `decide_notifications()` returns the updated dedupe `State`; persist only when the returned state is a new object.
 - Dispatch failures should be swallowed to stderr so the CLI still emits valid Waybar JSON.
 - New coverage added in `tests/test_cli_notifications.py` for first fire, dedupe, stale sync, disabled notifications, and dispatch failure.
+
+### [2026-05-04] Waybar Snippet Add
+- `custom/claude-usage` belongs before `bluetooth` in `modules-right`.
+- The module definition should use signal 11, not a `format` field, and point click-through to `https://claude.ai/settings/usage`.
+- JSONC validation succeeds after stripping both `//` and `/* */` comments before `json.loads()`.
+- `pkill -SIGUSR2 waybar` reloads config cleanly; `pkill -SIGRTMIN+11 waybar` triggers the module refresh path.
