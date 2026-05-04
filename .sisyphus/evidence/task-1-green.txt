@@ -1,0 +1,30 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0 -- /home/worm/proj/git/claude-usage-tracker/.venv/bin/python3
+cachedir: .pytest_cache
+PySide6 6.11.0 -- Qt runtime 6.11.0 -- Qt compiled 6.11.0
+rootdir: /home/worm/proj/git/claude-usage-tracker
+configfile: pyproject.toml
+plugins: qt-4.5.0, anyio-4.13.0
+collecting ... collected 19 items
+
+tests/test_render.py::test_render_errors[missing-session-No browser session found-missing-session usage-none] PASSED [  5%]
+tests/test_render.py::test_render_errors[missing-org-No organization cookie found-error usage-none] PASSED [ 10%]
+tests/test_render.py::test_render_errors[keyring-locked-Keyring is locked-error usage-none] PASSED [ 15%]
+tests/test_render.py::test_render_errors[keyring-unlock-dismissed-Keyring unlock cancelled-error usage-none] PASSED [ 21%]
+tests/test_render.py::test_render_errors[keyring-key-not-found-Keyring key not found-error usage-none] PASSED [ 26%]
+tests/test_render.py::test_render_errors[http-forbidden-Access denied (HTTP 403)-error usage-none] PASSED [ 31%]
+tests/test_render.py::test_render_errors[http-other-HTTP error-error usage-none] PASSED [ 36%]
+tests/test_render.py::test_render_errors[stale-sync-Sync data is stale-error usage-none] PASSED [ 42%]
+tests/test_render.py::test_render_errors[no-transcripts-No transcripts found-error usage-none] PASSED [ 47%]
+tests/test_render.py::test_fresh_sync_tier_boundaries[49-usage-low] PASSED [ 52%]
+tests/test_render.py::test_fresh_sync_tier_boundaries[50-usage-medium] PASSED [ 57%]
+tests/test_render.py::test_fresh_sync_tier_boundaries[74-usage-medium] PASSED [ 63%]
+tests/test_render.py::test_fresh_sync_tier_boundaries[75-usage-high] PASSED [ 68%]
+tests/test_render.py::test_fresh_sync_tier_boundaries[89-usage-high] PASSED [ 73%]
+tests/test_render.py::test_fresh_sync_tier_boundaries[90-usage-critical] PASSED [ 78%]
+tests/test_render.py::test_fresh_sync_with_breakdowns_emits_all_fields PASSED [ 84%]
+tests/test_render.py::test_fresh_sync_without_breakdowns_omits_breakdown_lines PASSED [ 89%]
+tests/test_render.py::test_stale_sync_uses_stale_class_and_no_percentage PASSED [ 94%]
+tests/test_render.py::test_other_error_uses_error_class PASSED           [100%]
+
+============================== 19 passed in 0.06s ==============================

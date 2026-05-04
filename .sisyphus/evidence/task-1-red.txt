@@ -1,0 +1,23 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0
+PySide6 6.11.0 -- Qt runtime 6.11.0 -- Qt compiled 6.11.0
+rootdir: /home/worm/proj/git/claude-usage-tracker
+configfile: pyproject.toml
+plugins: qt-4.5.0, anyio-4.13.0
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+____________________ ERROR collecting tests/test_render.py _____________________
+ImportError while importing test module '/home/worm/proj/git/claude-usage-tracker/tests/test_render.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../.local/share/uv/python/cpython-3.13.12-linux-x86_64-gnu/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_render.py:7: in <module>
+    from claude_usage_tracker.render import RenderError, TranscriptBreakdowns, render_waybar
+E   ModuleNotFoundError: No module named 'claude_usage_tracker.render'
+=========================== short test summary info ============================
+ERROR tests/test_render.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.06s ===============================
