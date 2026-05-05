@@ -52,6 +52,23 @@ class SettingsWindowConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class MeridianProfileMapping:
+    """Mapping from Meridian profile id to Chrome profile directory name."""
+
+    meridian_id: str
+    chrome_profile: str
+
+
+@dataclass(frozen=True, slots=True)
+class MeridianConfig:
+    """Meridian-aware profile switching configuration."""
+
+    enabled: bool = False
+    state_file: str = ""
+    profiles: list[MeridianProfileMapping] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
 class Config:
     """Application config."""
 
@@ -61,6 +78,7 @@ class Config:
     tooltip: TooltipConfig = field(default_factory=TooltipConfig)
     notifications: NotificationsConfig = field(default_factory=NotificationsConfig)
     settings_window: SettingsWindowConfig = field(default_factory=SettingsWindowConfig)
+    meridian: MeridianConfig = field(default_factory=MeridianConfig)
 
 
 def config_path() -> Path:
@@ -100,6 +118,7 @@ def _config_from_dict(data: dict[str, Any]) -> Config:
             "tooltip",
             "notifications",
             "settings_window",
+            "meridian",
         },
         "config",
     )
@@ -141,6 +160,13 @@ def _config_from_dict(data: dict[str, Any]) -> Config:
         settings_data,
         {"open_on_click", "remember_position", "remember_size", "stay_on_top"},
         "settings_window",
+    )
+
+    meridian_data = _section_dict(data, "meridian")
+    _reject_unknown_keys(
+        meridian_data,
+        {"enabled", "state_file", "profiles"},
+        "meridian",
     )
 
     tooltip = TooltipConfig(
@@ -188,6 +214,15 @@ def _config_from_dict(data: dict[str, Any]) -> Config:
             "settings_window.stay_on_top",
         ),
     )
+    meridian = MeridianConfig(
+        enabled=_require_bool(meridian_data.get("enabled", False), "meridian.enabled"),
+        state_file=_require_optional_string(meridian_data.get("state_file", ""), "meridian.state_file")
+        or "",
+        profiles=_validate_meridian_profiles(
+            meridian_data.get("profiles", []),
+            "meridian.profiles",
+        ),
+    )
 
     return Config(
         browser_mode=browser_mode,
@@ -196,6 +231,7 @@ def _config_from_dict(data: dict[str, Any]) -> Config:
         tooltip=tooltip,
         notifications=notifications,
         settings_window=settings_window,
+        meridian=meridian,
     )
 
 
@@ -207,6 +243,12 @@ def _config_to_dict(config: Config) -> dict[str, Any]:
     data["tooltip"] = asdict(config.tooltip)
     data["notifications"] = asdict(config.notifications)
     data["settings_window"] = asdict(config.settings_window)
+    if config.meridian != MeridianConfig():
+        data["meridian"] = {
+            "enabled": config.meridian.enabled,
+            **({"state_file": config.meridian.state_file} if config.meridian.state_file else {}),
+            "profiles": [asdict(profile) for profile in config.meridian.profiles],
+        }
     return data
 
 
@@ -229,6 +271,14 @@ def _require_bool(value: Any, field_name: str) -> bool:
     return value
 
 
+def _require_optional_string(value: Any, field_name: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    return value
+
+
 def _validate_thresholds(value: Any, field_name: str) -> list[int]:
     if not isinstance(value, list) or not value:
         raise ValueError(f"{field_name} threshold list must be a non-empty list")
@@ -239,6 +289,33 @@ def _validate_thresholds(value: Any, field_name: str) -> list[int]:
     if sorted(value) != value or len(set(value)) != len(value):
         raise ValueError(f"{field_name} thresholds must be unique and sorted")
     return list(value)
+
+
+def _validate_meridian_profiles(value: Any, field_name: str) -> list[MeridianProfileMapping]:
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list")
+
+    profiles: list[MeridianProfileMapping] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise ValueError(f"{field_name}[{index}] must be a table")
+        _reject_unknown_keys(item, {"meridian_id", "chrome_profile"}, f"{field_name}[{index}]")
+
+        meridian_id = item.get("meridian_id")
+        chrome_profile = item.get("chrome_profile")
+        if not isinstance(meridian_id, str) or not meridian_id:
+            raise ValueError(f"{field_name}[{index}].meridian_id must be a non-empty string")
+        if not isinstance(chrome_profile, str) or not chrome_profile:
+            raise ValueError(f"{field_name}[{index}].chrome_profile must be a non-empty string")
+
+        profiles.append(
+            MeridianProfileMapping(
+                meridian_id=meridian_id,
+                chrome_profile=chrome_profile,
+            )
+        )
+
+    return profiles
 
 
 def _dump_toml(data: dict[str, Any]) -> str:
@@ -253,10 +330,25 @@ def _dump_toml(data: dict[str, Any]) -> str:
         if lines:
             lines.append("")
         lines.append(f"[{key}]")
+        array_table_items: list[tuple[str, list[dict[str, Any]]]] = []
         for nested_key, nested_value in value.items():
+            if _is_array_of_tables(nested_value):
+                array_table_items.append((nested_key, nested_value))
+                continue
             lines.append(f"{nested_key} = {_format_toml_value(nested_value)}")
 
+        for nested_key, nested_value in array_table_items:
+            for item in nested_value:
+                lines.append("")
+                lines.append(f"[[{key}.{nested_key}]]")
+                for item_key, item_value in item.items():
+                    lines.append(f"{item_key} = {_format_toml_value(item_value)}")
+
     return "\n".join(lines) + "\n"
+
+
+def _is_array_of_tables(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(item, dict) for item in value)
 
 
 def _format_toml_value(value: Any) -> str:

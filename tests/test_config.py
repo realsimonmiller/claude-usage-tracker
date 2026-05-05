@@ -6,6 +6,8 @@ import pytest
 
 from claude_usage_tracker.config import (
     Config,
+    MeridianConfig,
+    MeridianProfileMapping,
     config_path,
     load_config,
     save_config,
@@ -120,3 +122,88 @@ def test_rejects_invalid_thresholds(tmp_path):
 
     with pytest.raises(ValueError, match="threshold"):
         load_config(config_file)
+
+
+def test_load_config_parses_meridian_section(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        '\n'.join(
+            [
+                'browser_mode = "auto"',
+                'refresh_interval_seconds = 60',
+                '',
+                '[tooltip]',
+                'show_block = true',
+                'show_week = true',
+                'show_model_breakdown = true',
+                'show_project_breakdown = true',
+                'show_reset_times = true',
+                '',
+                '[notifications]',
+                'enabled = true',
+                'block_thresholds = [50, 75, 90]',
+                'week_thresholds = [50, 75, 90]',
+                '',
+                '[settings_window]',
+                'open_on_click = true',
+                'remember_position = true',
+                'remember_size = true',
+                'stay_on_top = false',
+                '',
+                '[meridian]',
+                'enabled = true',
+                'state_file = "~/.local/state/meridian-switcher/active.txt"',
+                '',
+                '[[meridian.profiles]]',
+                'meridian_id = "POWER-Miller"',
+                'chrome_profile = "Default"',
+                '',
+                '[[meridian.profiles]]',
+                'meridian_id = "realsimonmiller"',
+                'chrome_profile = "Profile 1"',
+                '',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.meridian == MeridianConfig(
+        enabled=True,
+        state_file="~/.local/state/meridian-switcher/active.txt",
+        profiles=[
+            MeridianProfileMapping(
+                meridian_id="POWER-Miller",
+                chrome_profile="Default",
+            ),
+            MeridianProfileMapping(
+                meridian_id="realsimonmiller",
+                chrome_profile="Profile 1",
+            ),
+        ],
+    )
+
+
+def test_save_config_writes_meridian_profiles(tmp_path):
+    config = Config(
+        meridian=MeridianConfig(
+            enabled=True,
+            profiles=[
+                MeridianProfileMapping(
+                    meridian_id="POWER-Miller",
+                    chrome_profile="Default",
+                ),
+                MeridianProfileMapping(
+                    meridian_id="realsimonmiller",
+                    chrome_profile="Profile 1",
+                ),
+            ],
+        )
+    )
+    output_path = tmp_path / "config.toml"
+
+    save_config(config, output_path)
+
+    assert "[meridian]" in output_path.read_text(encoding="utf-8")
+    assert '[[meridian.profiles]]\nmeridian_id = "POWER-Miller"\nchrome_profile = "Default"' in output_path.read_text(encoding="utf-8")
