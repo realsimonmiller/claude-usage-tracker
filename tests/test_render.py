@@ -62,18 +62,20 @@ def test_render_errors(error, tooltip, expected_class):
 )
 def test_fresh_sync_tier_boundaries(percent5h, expected_tier):
     output = render_waybar(sync=make_sync(percent5h), breakdowns=None)
+    tooltip = output["tooltip"]
 
     assert "class" in output
     assert isinstance(output["class"], str)
+    assert isinstance(tooltip, str)
     assert output["class"] == f"fresh {expected_tier}"
     assert output["text"] == f"{ICON} {percent5h}%"
     from claude_usage_tracker.render import _progress_bar
-    assert output["tooltip"] == (
+    assert tooltip == (
         f"5-HOUR BLOCK\r{_progress_bar(percent5h)}  {percent5h}%\r\r"
         f"WEEKLY WINDOW\r{_progress_bar(61)}  61%"
     )
-    assert "\r" in output["tooltip"]
-    assert "\n" not in output["tooltip"]
+    assert "\r" in tooltip
+    assert "\n" not in tooltip
     assert output["percentage"] == percent5h
 
 
@@ -83,38 +85,61 @@ def test_fresh_sync_with_breakdowns_emits_all_fields():
         breakdowns=TranscriptBreakdowns(top_model="Sonnet 58%", top_project="cli-redesign 31%"),
     )
 
+    tooltip = output["tooltip"]
+
     assert "class" in output
     assert isinstance(output["class"], str)
+    assert isinstance(tooltip, str)
     assert output["text"] == f"{ICON} 42%"
     assert output["class"] == "fresh usage-low"
     assert output["percentage"] == 42
     from claude_usage_tracker.render import _progress_bar
-    assert output["tooltip"] == (
+    assert tooltip == (
         f"5-HOUR BLOCK\r{_progress_bar(42)}  42%\r\r"
         f"WEEKLY WINDOW\r{_progress_bar(61)}  61%\r\r"
         f"CLAUDE CODE — BY MODEL\rSonnet      {_progress_bar(58)}  58%\r\r"
         f"CLAUDE CODE — TOP PROJECT\rcli-redesign  {_progress_bar(31)}  31%"
     )
-    assert "\r" in output["tooltip"]
-    assert "\n" not in output["tooltip"]
+    assert "\r" in tooltip
+    assert "\n" not in tooltip
+
+
+def test_fresh_sync_tooltip_includes_active_meridian_profile():
+    output = render_waybar(
+        sync=make_sync(42),
+        breakdowns=None,
+        active_meridian_profile="realsimonmiller",
+    )
+
+    from claude_usage_tracker.render import _progress_bar
+
+    tooltip = output["tooltip"]
+    assert isinstance(tooltip, str)
+    assert tooltip == (
+        "Active profile: realsimonmiller\r\r"
+        f"5-HOUR BLOCK\r{_progress_bar(42)}  42%\r\r"
+        f"WEEKLY WINDOW\r{_progress_bar(61)}  61%"
+    )
 
 
 def test_fresh_sync_without_breakdowns_omits_breakdown_lines():
     output = render_waybar(sync=make_sync(42), breakdowns=None)
+    tooltip = output["tooltip"]
 
     assert "class" in output
     assert isinstance(output["class"], str)
+    assert isinstance(tooltip, str)
     assert output["text"] == f"{ICON} 42%"
     assert output["class"] == "fresh usage-low"
     assert output["percentage"] == 42
     from claude_usage_tracker.render import _progress_bar
-    assert output["tooltip"] == (
+    assert tooltip == (
         f"5-HOUR BLOCK\r{_progress_bar(42)}  42%\r\r"
         f"WEEKLY WINDOW\r{_progress_bar(61)}  61%"
     )
-    assert "CLAUDE CODE" not in output["tooltip"]
-    assert "\r" in output["tooltip"]
-    assert "\n" not in output["tooltip"]
+    assert "CLAUDE CODE" not in tooltip
+    assert "\r" in tooltip
+    assert "\n" not in tooltip
 
 
 def test_stale_sync_uses_stale_class_and_no_percentage():

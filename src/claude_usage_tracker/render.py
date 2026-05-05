@@ -34,12 +34,18 @@ def render_waybar(
     sync: SyncedUsage | None,
     breakdowns: TranscriptBreakdowns | None,
     error: RenderError | None = None,
+    active_meridian_profile: str | None = None,
 ) -> dict[str, object]:
     base_class = _base_class(sync=sync, error=error)
     usage_class = _usage_class(sync=sync)
     output: dict[str, object] = {
         "text": _text(sync=sync, error=error),
-        "tooltip": _tooltip(sync=sync, breakdowns=breakdowns, error=error),
+        "tooltip": _tooltip(
+            sync=sync,
+            breakdowns=breakdowns,
+            error=error,
+            active_meridian_profile=active_meridian_profile,
+        ),
         "class": f"{base_class} {usage_class}".strip(),
     }
     if sync is not None and sync.authority is SyncAuthority.FRESH:
@@ -83,10 +89,15 @@ def _tooltip(
     sync: SyncedUsage | None,
     breakdowns: TranscriptBreakdowns | None,
     error: RenderError | None,
+    active_meridian_profile: str | None,
 ) -> str:
     if sync is not None and sync.authority is SyncAuthority.FRESH and error is None:
         now = datetime.now(UTC)
         lines: list[str] = []
+
+        if active_meridian_profile:
+            lines.append(f"Active profile: {active_meridian_profile}")
+            lines.append("")
 
         lines.append("5-HOUR BLOCK")
         lines.append(f"{_progress_bar(sync.percent5h)}  {sync.percent5h}%")
