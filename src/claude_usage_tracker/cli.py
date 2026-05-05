@@ -61,6 +61,7 @@ def _handle_render_waybar(fixture_suite: str | None, config: str | None) -> int:
             inputs.sync is not None
             and inputs.sync.authority is SyncAuthority.FRESH
             and app_config.notifications.enabled
+            and not _notifications_suppressed_for_meridian(inputs, app_config)
         ):
             try:
                 current_state = load_state()
@@ -80,7 +81,12 @@ def _handle_render_waybar(fixture_suite: str | None, config: str | None) -> int:
             except Exception as exc:
                 sys.stderr.write(f"notify: {exc}\n")
 
-        payload = render_waybar(sync=inputs.sync, breakdowns=inputs.breakdowns, error=inputs.error)
+        payload = render_waybar(
+            sync=inputs.sync,
+            breakdowns=inputs.breakdowns,
+            error=inputs.error,
+            active_meridian_profile=inputs.active_meridian_profile,
+        )
         sys.stdout.write(json.dumps(payload) + "\n")
         return 0
 
@@ -177,6 +183,20 @@ def _handle_doctor(fixture_suite: str | None, config: str | None) -> int:
     sys.stdout.write(f"transcript_root: {transcript_root} ({transcript_count} files)\n")
 
     return 0 if status in ("ok", "warn") else 1
+
+
+def _notifications_suppressed_for_meridian(inputs, app_config) -> bool:
+    if not app_config.meridian.enabled:
+        return False
+    if inputs.active_meridian_profile is None:
+        return False
+    if inputs.resolved_profile_name is None:
+        return False
+
+    for profile in app_config.meridian.profiles:
+        if profile.meridian_id == inputs.active_meridian_profile:
+            return profile.chrome_profile != inputs.resolved_profile_name
+    return False
 
 
 def _handle_settings(config: str, headless_save: str | None) -> int:

@@ -9,7 +9,12 @@ from unittest.mock import patch
 import pytest
 
 from claude_usage_tracker.cli import main
-from claude_usage_tracker.config import Config, NotificationsConfig
+from claude_usage_tracker.config import (
+    Config,
+    MeridianConfig,
+    MeridianProfileMapping,
+    NotificationsConfig,
+)
 from claude_usage_tracker.live_session import RenderInputs
 from claude_usage_tracker.notifier import Notification
 from claude_usage_tracker.render import RenderError, TranscriptBreakdowns
@@ -170,3 +175,38 @@ def test_dispatch_failure_swallowed(capsys: pytest.CaptureFixture[str]):
     assert "class" in payload
     assert "notify: dispatch failed:" in captured.err
     mock_save.assert_called_once_with(new_state)
+
+
+def test_meridian_mismatch_suppresses_notifications(capsys: pytest.CaptureFixture[str]):
+    meridian_inputs = RenderInputs(
+        sync=_make_fresh_sync(),
+        breakdowns=TranscriptBreakdowns(top_model=None, top_project=None),
+        error=None,
+        active_meridian_profile="realsimonmiller",
+        resolved_profile_name="Default",
+    )
+    config = Config(
+        notifications=NotificationsConfig(enabled=True),
+        meridian=MeridianConfig(
+            enabled=True,
+            profiles=[
+                MeridianProfileMapping(
+                    meridian_id="realsimonmiller",
+                    chrome_profile="Profile 1",
+                )
+            ],
+        ),
+    )
+
+    with (
+        patch(_LOAD_CONFIG, return_value=config),
+        patch(_ASSEMBLE_RENDER_INPUTS, return_value=meridian_inputs),
+        patch(_DECIDE_NOTIFICATIONS) as mock_decide,
+    ):
+        rc = main(["render-waybar"])
+
+    assert rc == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert "class" in payload
+    mock_decide.assert_not_called()
