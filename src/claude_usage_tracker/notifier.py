@@ -37,7 +37,7 @@ def decide_notifications(
     notifications: list[Notification] = []
     notification_dedupe = dict(state.notification_dedupe)
 
-    block_window_id = sync.reset5h_at.isoformat() if sync.reset5h_at else sync.synced_at.isoformat()
+    block_window_id = _window_id(sync.reset5h_at, sync.synced_at)
     block_window = notification_dedupe.get(
         block_window_id,
         NotificationDedupeWindow(window_id=block_window_id),
@@ -67,7 +67,7 @@ def decide_notifications(
             sent_thresholds=sorted(block_sent),
         )
 
-    week_window_id = sync.reset7d_at.isoformat() if sync.reset7d_at else sync.synced_at.isoformat()
+    week_window_id = _window_id(sync.reset7d_at, sync.synced_at)
     week_window = notification_dedupe.get(
         week_window_id,
         NotificationDedupeWindow(window_id=week_window_id),
@@ -100,6 +100,12 @@ def decide_notifications(
     if notifications:
         return notifications, State(notification_dedupe=notification_dedupe)
     return [], state
+
+
+def _window_id(reset_at: datetime | None, fallback: datetime) -> str:
+    if reset_at is None:
+        return fallback.replace(microsecond=0).isoformat()
+    return reset_at.replace(microsecond=0).isoformat()
 
 
 def dispatch(notification: Notification) -> None:

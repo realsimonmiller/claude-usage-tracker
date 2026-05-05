@@ -207,3 +207,27 @@ def test_save_config_writes_meridian_profiles(tmp_path):
 
     assert "[meridian]" in output_path.read_text(encoding="utf-8")
     assert '[[meridian.profiles]]\nmeridian_id = "POWER-Miller"\nchrome_profile = "Default"' in output_path.read_text(encoding="utf-8")
+
+
+def test_save_config_round_trips_meridian_section(tmp_path):
+    config = Config(
+        meridian=MeridianConfig(
+            enabled=True,
+            profiles=[
+                MeridianProfileMapping(
+                    meridian_id="POWER-Miller",
+                    chrome_profile="Default",
+                ),
+                MeridianProfileMapping(
+                    meridian_id="realsimonmiller",
+                    chrome_profile="Profile 1",
+                ),
+            ],
+        )
+    )
+    output_path = tmp_path / "config.toml"
+
+    save_config(config, output_path)
+    loaded = load_config(output_path)
+
+    assert loaded.meridian == config.meridian

@@ -20,6 +20,7 @@ from claude_usage_tracker.notifier import Notification
 from claude_usage_tracker.render import RenderError, TranscriptBreakdowns
 from claude_usage_tracker.state import NotificationDedupeWindow, State
 from claude_usage_tracker.sync import SyncAuthority, SyncedUsage
+from claude_usage_tracker.notifier import decide_notifications
 
 _ASSEMBLE_RENDER_INPUTS = "claude_usage_tracker.live_session.assemble_render_inputs"
 _LOAD_CONFIG = "claude_usage_tracker.config.load_config"
@@ -210,3 +211,40 @@ def test_meridian_mismatch_suppresses_notifications(capsys: pytest.CaptureFixtur
     payload = json.loads(captured.out)
     assert "class" in payload
     mock_decide.assert_not_called()
+
+
+def test_notification_dedupe_ignores_reset_timestamp_microseconds() -> None:
+    config = Config(notifications=NotificationsConfig(enabled=True, block_thresholds=[90], week_thresholds=[95]))
+    state = State()
+    sync_a = SyncedUsage(
+        percent5h=100,
+        percent7d=26,
+        reset5h_at=datetime(2026, 5, 5, 14, 30, 0, 111111, tzinfo=UTC),
+        reset7d_at=datetime(2026, 5, 11, 2, 0, 0, 111111, tzinfo=UTC),
+        synced_at=datetime(2026, 5, 5, 13, 0, tzinfo=UTC),
+        authority=SyncAuthority.FRESH,
+    )
+    sync_b = SyncedUsage(
+        percent5h=100,
+        percent7d=26,
+        reset5h_at=datetime(2026, 5, 5, 14, 30, 0, 999999, tzinfo=UTC),
+        reset7d_at=datetime(2026, 5, 11, 2, 0, 0, 999999, tzinfo=UTC),
+        synced_at=datetime(2026, 5, 5, 13, 1, tzinfo=UTC),
+        authority=SyncAuthority.FRESH,
+    )
+
+    notifications_a, next_state = decide_notifications(
+        sync=sync_a,
+        config=config,
+        state=state,
+        now=datetime(2026, 5, 5, 13, 0, tzinfo=UTC),
+    )
+    notifications_b, _ = decide_notifications(
+        sync=sync_b,
+        config=config,
+        state=next_state,
+        now=datetime(2026, 5, 5, 13, 1, tzinfo=UTC),
+    )
+
+    assert len(notifications_a) == 1
+    assert notifications_b == []

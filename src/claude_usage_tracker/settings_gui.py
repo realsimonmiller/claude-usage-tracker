@@ -154,6 +154,7 @@ def run_settings_gui() -> int:
                 week_thresholds=new_week,
             ),
             settings_window=config.settings_window,
+            meridian=config.meridian,
         )
         save_config(new_config)
 
