@@ -25,6 +25,10 @@ ProfileResolutionError = importlib.import_module(
 
 RenderError = importlib.import_module("claude_usage_tracker.render").RenderError
 Config = importlib.import_module("claude_usage_tracker.config").Config
+MeridianConfig = importlib.import_module("claude_usage_tracker.config").MeridianConfig
+MeridianProfileMapping = importlib.import_module(
+    "claude_usage_tracker.config"
+).MeridianProfileMapping
 UsageEntry = importlib.import_module("claude_usage_tracker.domain.models").UsageEntry
 
 
@@ -66,12 +70,15 @@ def _call(
     resolve_side_effect: Exception | None = None,
     fetch_side_effect: Exception | None = None,
     fetch_return: object = FAKE_SYNC,
-    load_return: list | None = None,
+    load_return: list[object] | None = None,
 ) -> "RenderInputs":
+    class ResolvedProfileStub:
+        profile_name = "Default"
+
     def fake_resolve(*args, **kwargs):
         if resolve_side_effect is not None:
             raise resolve_side_effect
-        return object()
+        return ResolvedProfileStub()
 
     def fake_fetch(*args, **kwargs):
         if fetch_side_effect is not None:
@@ -90,6 +97,19 @@ def _call(
         transcript_root=tmp_path,
         browser_root=tmp_path,
         now=NOW,
+    )
+
+
+def _meridian_config(state_file: Path):
+    return MeridianConfig(
+        enabled=True,
+        state_file=str(state_file),
+        profiles=[
+            MeridianProfileMapping(
+                meridian_id="realsimonmiller",
+                chrome_profile="Profile 1",
+            )
+        ],
     )
 
 
@@ -197,6 +217,67 @@ def test_happy_path_returns_sync_and_breakdowns(
     assert result.breakdowns is not None
     assert result.breakdowns.top_model == "sonnet 100%"
     assert result.breakdowns.top_project == "my-project 100%"
+
+
+def test_meridian_override_uses_active_profile_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "active.txt"
+    state_file.write_text("realsimonmiller\n", encoding="utf-8")
+
+    resolved_names: list[str | None] = []
+
+    class ResolvedProfileStub:
+        profile_name = "Profile 1"
+
+    def fake_resolve(*args, **kwargs):
+        resolved_names.append(kwargs["config"].profile_override)
+        return ResolvedProfileStub()
+
+    monkeypatch.setattr(live_session, "resolve_profile", fake_resolve)
+    monkeypatch.setattr(live_session, "fetch_live_usage", lambda *_args, **_kwargs: FAKE_SYNC)
+    monkeypatch.setattr(live_session, "load_entries", lambda *_args, **_kwargs: [])
+
+    result = assemble_render_inputs(
+        config=Config(meridian=_meridian_config(state_file)),
+        transcript_root=tmp_path,
+        browser_root=tmp_path,
+        now=NOW,
+    )
+
+    assert resolved_names == ["Profile 1"]
+    assert result.active_meridian_profile == "realsimonmiller"
+    assert result.resolved_profile_name == "Profile 1"
+
+
+def test_meridian_missing_state_file_falls_back_without_override(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    resolved_names: list[str | None] = []
+
+    class ResolvedProfileStub:
+        profile_name = "Default"
+
+    def fake_resolve(*args, **kwargs):
+        resolved_names.append(kwargs["config"].profile_override)
+        return ResolvedProfileStub()
+
+    monkeypatch.setattr(live_session, "resolve_profile", fake_resolve)
+    monkeypatch.setattr(live_session, "fetch_live_usage", lambda *_args, **_kwargs: FAKE_SYNC)
+    monkeypatch.setattr(live_session, "load_entries", lambda *_args, **_kwargs: [])
+
+    result = assemble_render_inputs(
+        config=Config(meridian=_meridian_config(tmp_path / "missing.txt")),
+        transcript_root=tmp_path,
+        browser_root=tmp_path,
+        now=NOW,
+    )
+
+    assert resolved_names == [None]
+    assert result.active_meridian_profile is None
+    assert result.resolved_profile_name == "Default"
 
 
 def test_empty_transcripts_returns_none_breakdowns(

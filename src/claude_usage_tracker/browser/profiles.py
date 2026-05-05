@@ -28,19 +28,20 @@ class ResolvedProfile:
 def resolve_profile(
     browser_root: str | Path,
     config_path: str | Path | None = None,
+    config: Config | None = None,
 ) -> ResolvedProfile:
     """Resolve a supported browser/profile from deterministic Linux catalog data."""
 
     root = Path(browser_root)
-    config = load_config(config_path)
-    browsers = _candidate_browsers(config)
+    effective_config = config if config is not None else load_config(config_path)
+    browsers = _candidate_browsers(effective_config)
 
     for browser in browsers:
-        resolved = _resolve_browser(root, browser, config.profile_override)
+        resolved = _resolve_browser(root, browser, effective_config.profile_override)
         if resolved is not None:
             return resolved
 
-    raise ProfileResolutionError(_failure_message(config))
+    raise ProfileResolutionError(_failure_message(effective_config))
 
 
 def _candidate_browsers(config: Config) -> tuple[BrowserDefinition, ...]:
